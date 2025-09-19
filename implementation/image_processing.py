@@ -15,13 +15,11 @@
 """
 
 import cv2
-
-import interfaces
-
 import numpy as np
+from interfaces.i_image_processing import IImageProcessing
 
 
-class ImageProcessing(interfaces.IImageProcessing):
+class ImageProcessing(IImageProcessing):
     """
     Реализация интерфейса IImageProcessing с использованием библиотеки OpenCV.
 

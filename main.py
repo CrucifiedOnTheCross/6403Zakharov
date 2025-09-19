@@ -26,22 +26,25 @@ main.py
 
 import argparse
 import os
+import time
 
 import cv2
 
-from implementation import ImageProcessing
+# Импортируем обе реализации
+from implementation.image_processing import ImageProcessing as LibraryImplementation
+from implementation.image_processing_custom import ImageProcessingCustom as CustomImplementation
+
 
 def main() -> None:
+    """
+    Главная функция для парсинга аргументов и запуска обработки.
+    """
     parser = argparse.ArgumentParser(
-        description="Обработка изображения с помощью методов ImageProcessing (OpenCV).",
+        description="Обработка изображения с выбором реализации.",
     )
     parser.add_argument(
         "method",
-        choices=[
-            "edges",
-            "corners",
-            "circles",
-        ],
+        choices=["edges", "corners", "circles"],
         help="Метод обработки: edges, corners, circles",
     )
     parser.add_argument(
@@ -49,8 +52,14 @@ def main() -> None:
         help="Путь к входному изображению",
     )
     parser.add_argument(
+        "--impl",
+        choices=["custom", "library"],
+        default="custom",
+        help="Выбор реализации: 'custom' (своя) или 'library' (OpenCV)",
+    )
+    parser.add_argument(
         "-o", "--output",
-        help="Путь для сохранения результата (по умолчанию: <input>_result.png)",
+        help="Путь для сохранения результата (по умолчанию: <input>_<method>_<impl>.png)",
     )
 
     args = parser.parse_args()
@@ -61,29 +70,47 @@ def main() -> None:
         print(f"Ошибка: не удалось загрузить изображение {args.input}")
         return
 
-    processor = ImageProcessing()
-
-    # Выбор метода
-    if args.method == "edges":
-        result = processor.edge_detection(image)
-    elif args.method == "corners":
-        result = processor.corner_detection(image)
-    elif args.method == "circles":
-        result = processor.circle_detection(image)
+    # Выбор реализации в зависимости от аргумента --impl
+    if args.impl == 'custom':
+        processor = CustomImplementation()
+        print("INFO: Используется пользовательская реализация (NumPy).")
     else:
-        print("Ошибка: неизвестный метод")
+        processor = LibraryImplementation()
+        print("INFO: Используется библиотечная реализация (OpenCV).")
+
+    # Измерение времени выполнения и вызов метода
+    start_time = time.time()
+    result = None
+    try:
+        if args.method == "edges":
+            result = processor.edge_detection(image)
+        elif args.method == "corners":
+            result = processor.corner_detection(image)
+        elif args.method == "circles":
+            print("INFO: Попытка вызова метода обнаружения окружностей...")
+            result = processor.circle_detection(image)
+    except NotImplementedError as e:
+        print(f"Ошибка: {e}")
         return
+    except Exception as e:
+        print(f"Произошла непредвиденная ошибка: {e}")
+        return
+
+    end_time = time.time()
+    execution_time = end_time - start_time
+    print(f"INFO: Метод '{args.method}' выполнен за {execution_time:.4f} секунд.")
 
     # Определение пути для сохранения
     if args.output:
         output_path = args.output
     else:
         base, ext = os.path.splitext(args.input)
-        output_path = f"{base}_result.png"
+        output_path = f"{base}_{args.method}_{args.impl}{ext}"
 
     # Сохранение результата
-    cv2.imwrite(output_path, result)
-    print(f"Результат сохранён в {output_path}")
+    if result is not None:
+        cv2.imwrite(output_path, result)
+        print(f"Результат сохранён в {output_path}")
 
 
 if __name__ == "__main__":

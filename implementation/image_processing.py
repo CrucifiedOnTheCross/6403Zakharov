@@ -134,4 +134,29 @@ class ImageProcessing(IImageProcessing):
         Returns:
             np.ndarray: Изображение с выделенными окружностями.
         """
-        raise NotImplementedError("Метод обнаружения окружностей пока не реализован.")
+        output_image = image.copy()
+        gray = self._rgb_to_grayscale(image)
+        
+        gray_blurred = cv2.medianBlur(gray, 5)
+        
+        circles = cv2.HoughCircles(
+            gray_blurred,
+            cv2.HOUGH_GRADIENT,
+            dp=1,
+            minDist=50,
+            param1=200,
+            param2=50,
+            minRadius=10,
+            maxRadius=150
+        )
+        
+        if circles is not None:
+            circles = np.uint16(np.around(circles))
+            
+            for i in circles[0, :]:
+                center = (i[0], i[1])
+                radius = i[2]
+                cv2.circle(output_image, center, 2, (0, 0, 255), 3)
+                cv2.circle(output_image, center, radius, (0, 255, 0), 2)
+                
+        return output_image

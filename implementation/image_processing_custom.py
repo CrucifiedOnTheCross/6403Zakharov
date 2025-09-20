@@ -131,12 +131,11 @@ class ImageProcessingCustom(IImageProcessing):
 
         magnitude = np.sqrt(grad_x**2 + grad_y**2)
         max_magnitude = np.max(magnitude)
-        if max_magnitude > 0:
-            magnitude = (magnitude / max_magnitude * 255).astype(np.uint8)
-        else:
-            magnitude = magnitude.astype(np.uint8)
 
-        return magnitude
+        threshold_ratio = 0.15
+        threshold = max_magnitude * threshold_ratio
+        edge_image = ((magnitude > threshold) * 255).astype(np.uint8)
+        return edge_image
 
     def corner_detection(self: ImageProcessingCustom, image: np.ndarray) -> np.ndarray:
         """
@@ -187,21 +186,20 @@ class ImageProcessingCustom(IImageProcessing):
             np.ndarray: Копия изображения с нарисованными найденными окружностями.
         """
         edges = self.edge_detection(image)
-        edges_binary = (edges > 70).astype(np.uint8)
 
-        height, width = edges_binary.shape
-        min_radius, max_radius = 20, 100
+        height, width = edges.shape
+        min_radius, max_radius = 30, 100
         radii = np.arange(min_radius, max_radius)
         accumulator = np.zeros((height, width, len(radii)), dtype=np.uint16)
 
-        edge_pixels = np.argwhere(edges_binary == 1)
+        edge_pixels = np.argwhere(edges == 1)
 
         logging.info("Выполняется голосование в пространстве Хафа...")
         accumulator = self._hough_vote(edge_pixels, radii, accumulator)
 
         logging.info("Поиск локальных максимумов и фильтрация результатов...")
-        threshold = 120
-        min_dist = 20
+        threshold = 160
+        min_dist = 30
 
         strong_circles_indices = np.argwhere(accumulator > threshold)
         strong_circles_values = accumulator[

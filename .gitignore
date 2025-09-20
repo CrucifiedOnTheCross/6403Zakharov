@@ -2,3 +2,7 @@
 results/
 __pycache__/.venv/
 .flake8
+*_custom.jpg
+*_library.jpg
+*_custom.png
+*_library.png

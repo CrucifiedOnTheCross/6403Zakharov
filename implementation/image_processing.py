@@ -11,12 +11,15 @@
 - обнаружение углов (алгоритм Харриса)
 - обнаружение окружностей (метод пока не реализован)
 
-Модуль предназначен для учебных целей (лабораторная работа по курсу "Технологии программирования на Python").
+Модуль предназначен для учебных целей (лабораторная работа по курсу
+"Технологии программирования на Python").
 """
 
 import cv2
-import numpy as np
+
 from interfaces.i_image_processing import IImageProcessing
+
+import numpy as np
 
 
 class ImageProcessing(IImageProcessing):
@@ -35,7 +38,11 @@ class ImageProcessing(IImageProcessing):
         circle_detection(image): Обнаруживает окружности (HoughCircles).
     """
 
-    def _convolution(self, image: np.ndarray, kernel: np.ndarray) -> np.ndarray:
+    def _convolution(
+        self: "ImageProcessing",
+        image: np.ndarray,
+        kernel: np.ndarray,
+    ) -> np.ndarray:
         """
         Выполняет свёртку изображения с заданным ядром.
 
@@ -50,7 +57,10 @@ class ImageProcessing(IImageProcessing):
         """
         return cv2.filter2D(image, -1, kernel)
 
-    def _rgb_to_grayscale(self, image: np.ndarray) -> np.ndarray:
+    def _rgb_to_grayscale(
+        self: "ImageProcessing",
+        image: np.ndarray,
+    ) -> np.ndarray:
         """
         Преобразует RGB-изображение в оттенки серого.
 
@@ -65,7 +75,11 @@ class ImageProcessing(IImageProcessing):
         """
         return cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
 
-    def _gamma_correction(self, image: np.ndarray, gamma: float) -> np.ndarray:
+    def _gamma_correction(
+        self: "ImageProcessing",
+        image: np.ndarray,
+        gamma: float,
+    ) -> np.ndarray:
         """
         Применяет гамма-коррекцию к изображению.
 
@@ -79,11 +93,15 @@ class ImageProcessing(IImageProcessing):
             np.ndarray: Изображение после гамма-коррекции.
         """
         inv_gamma = 1.0 / gamma
-        table = np.array([(i / 255.0) ** inv_gamma * 255
-                          for i in range(256)]).astype("uint8")
+        table = np.array(
+            [(i / 255.0) ** inv_gamma * 255 for i in range(256)],
+        ).astype("uint8")
         return cv2.LUT(image, table)
 
-    def edge_detection(self, image: np.ndarray) -> np.ndarray:
+    def edge_detection(
+        self: "ImageProcessing",
+        image: np.ndarray,
+    ) -> np.ndarray:
         """
         Выполняет обнаружение границ на изображении.
 
@@ -100,7 +118,10 @@ class ImageProcessing(IImageProcessing):
         edges = cv2.Canny(gray, 100, 200)
         return edges
 
-    def corner_detection(self, image: np.ndarray) -> np.ndarray:
+    def corner_detection(
+        self: "ImageProcessing",
+        image: np.ndarray,
+    ) -> np.ndarray:
         """
         Выполняет обнаружение углов на изображении.
 
@@ -121,7 +142,10 @@ class ImageProcessing(IImageProcessing):
         result[dst > 0.01 * dst.max()] = [255, 0, 0]
         return result
 
-    def circle_detection(self, image: np.ndarray) -> np.ndarray:
+    def circle_detection(
+        self: "ImageProcessing",
+        image: np.ndarray,
+    ) -> np.ndarray:
         """
         Выполняет обнаружение окружностей на изображении.
 
@@ -136,9 +160,9 @@ class ImageProcessing(IImageProcessing):
         """
         output_image = image.copy()
         gray = self._rgb_to_grayscale(image)
-        
+
         gray_blurred = cv2.medianBlur(gray, 5)
-        
+
         circles = cv2.HoughCircles(
             gray_blurred,
             cv2.HOUGH_GRADIENT,
@@ -147,16 +171,16 @@ class ImageProcessing(IImageProcessing):
             param1=200,
             param2=50,
             minRadius=10,
-            maxRadius=150
+            maxRadius=150,
         )
-        
+
         if circles is not None:
             circles = np.uint16(np.around(circles))
-            
+
             for i in circles[0, :]:
                 center = (i[0], i[1])
                 radius = i[2]
                 cv2.circle(output_image, center, 2, (0, 0, 255), 3)
                 cv2.circle(output_image, center, radius, (0, 255, 0), 2)
-                
+
         return output_image

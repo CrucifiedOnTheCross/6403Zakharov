@@ -9,11 +9,11 @@
 - обнаружение углов (алгоритм Харриса)
 - обнаружение окружностей (метод пока не реализован)
 
-Модуль предназначен для учебных целей (лабораторная работа по курсу "Технологии программирования на Python").
+Модуль предназначен для учебных целей
+(лабораторная работа по курсу "Технологии программирования на Python").
 """
 
 from abc import ABC, abstractmethod
-
 
 import numpy as np
 
@@ -27,81 +27,83 @@ class IImageProcessing(ABC):
     """
 
     @abstractmethod
-    def _convolution(self, image: np.ndarray, kernel: np.ndarray) -> np.ndarray:
+    def _convolution(
+        self: "IImageProcessing",
+        image: np.ndarray,
+        kernel: np.ndarray,
+    ) -> np.ndarray:
         """
         Выполняет свёртку изображения с заданным ядром.
 
         Args:
             image (np.ndarray): Входное изображение.
             kernel (np.ndarray): Ядро свёртки.
-
-        Returns:
-            np.ndarray: Результат применения свёртки к изображению.
         """
         pass
 
     @abstractmethod
-    def _rgb_to_grayscale(self, image: np.ndarray) -> np.ndarray:
+    def _rgb_to_grayscale(
+        self: "IImageProcessing",
+        image: np.ndarray,
+    ) -> np.ndarray:
         """
         Преобразует RGB-изображение в оттенки серого.
 
         Args:
             image (np.ndarray): Входное RGB-изображение.
-
-        Returns:
-            np.ndarray: Изображение в оттенках серого.
         """
         pass
 
     @abstractmethod
-    def _gamma_correction(self, image: np.ndarray, gamma: float) -> np.ndarray:
+    def _gamma_correction(
+        self: "IImageProcessing",
+        image: np.ndarray,
+        gamma: float,
+    ) -> np.ndarray:
         """
         Применяет гамма-коррекцию к изображению.
 
         Args:
             image (np.ndarray): Входное изображение.
             gamma (float): Значение гамма-коррекции.
-
-        Returns:
-            np.ndarray: Изображение после гамма-коррекции.
         """
         pass
 
     @abstractmethod
-    def edge_detection(self, image: np.ndarray) -> np.ndarray:
+    def edge_detection(
+        self: "IImageProcessing",
+        image: np.ndarray,
+    ) -> np.ndarray:
         """
         Выполняет обнаружение границ на изображении.
 
         Args:
             image (np.ndarray): Входное изображение.
-
-        Returns:
-            np.ndarray: Изображение с выделенными границами.
         """
         pass
 
     @abstractmethod
-    def corner_detection(self, image: np.ndarray) -> np.ndarray:
+    def corner_detection(
+        self: "IImageProcessing",
+        image: np.ndarray,
+    ) -> np.ndarray:
         """
         Выполняет обнаружение углов на изображении.
 
         Args:
             image (np.ndarray): Входное изображение.
-
-        Returns:
-            np.ndarray: Изображение с выделенными углами.
         """
         pass
 
     @abstractmethod
-    def circle_detection(self, image: np.ndarray) -> np.ndarray:
+    def circle_detection(
+        self: "IImageProcessing",
+        image: np.ndarray,
+    ) -> np.ndarray:
         """
         Выполняет обнаружение окружностей на изображении.
 
         Args:
             image (np.ndarray): Входное изображение.
-
-        Returns:
-            np.ndarray: Изображение с выделенными окружностями.
         """
         pass

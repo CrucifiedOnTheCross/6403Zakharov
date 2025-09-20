@@ -3,8 +3,10 @@ main.py
 
 Пример лабораторной работы по курсу "Технологии программирования на Python".
 
-Модуль предназначен для демонстрации работы с обработкой изображений с помощью библиотеки OpenCV.
-Реализован консольный интерфейс для применения различных методов обработки к изображению:
+Модуль предназначен для демонстрации работы с обработкой изображений с помощью
+библиотеки OpenCV.
+Реализован консольный интерфейс для применения различных методов обработки
+к изображению:
 - обнаружение границ (edges)
 - обнаружение углов (corners)
 - обнаружение окружностей (circles)
@@ -15,7 +17,8 @@ main.py
 Аргументы:
     метод: edges | corners | circles
     путь_к_изображению: путь к входному изображению
-    -o, --output: путь для сохранения результата (по умолчанию: <имя_входного_файла>_result.png)
+    -o, --output: путь для сохранения результата
+                  (по умолчанию: <имя_входного_файла>_result.png)
 
 Пример:
     python main.py edges input.jpg
@@ -31,8 +34,10 @@ import time
 import cv2
 
 # Импортируем обе реализации
-from implementation.image_processing import ImageProcessing as LibraryImplementation
-from implementation.image_processing_custom import ImageProcessingCustom as CustomImplementation
+from implementation.image_processing import \
+    ImageProcessing as LibraryImplementation
+from implementation.image_processing_custom import \
+    ImageProcessingCustom as CustomImplementation
 
 
 def main() -> None:

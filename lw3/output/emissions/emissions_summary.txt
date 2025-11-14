@@ -1,0 +1,7 @@
+Самые зеленые страны: Tanzania:0.0000, Afghanistan:0.0000, Myanmar:0.0000
+Самые грязные страны: Qatar:0.0000, Kuwait:0.0000, United Arab Emirates:0.0000
+Минимальный разброс выбросов: Gabon:0.354, Iceland:0.478, Cyprus:0.872
+Максимальный разброс выбросов: China:2873.910, India:608.487, United States:314.527
+Общий GDP: 1964764053058048.00
+Общие выбросы: 745392.09
+Корреляция Population vs Emissions: 0.702

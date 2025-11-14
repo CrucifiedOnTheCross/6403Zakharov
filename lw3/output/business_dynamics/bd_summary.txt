@@ -1,0 +1,6 @@
+Штаты с минимальным Net Job Creation Rate: Texas:0.880, District of Columbia:0.887, Pennsylvania:0.940
+Штаты с максимальным Net Job Creation Rate: New Mexico:4.065, Arkansas:3.708, West Virginia:3.419
+Наиболее стабильные штаты (минимальный Std): Pennsylvania:2.784, Kentucky:2.906, Kansas:2.965
+Наиболее турбулентные штаты (максимальный Std): Alaska:9.086, North Dakota:5.414, West Virginia:5.055
+Наиболее нестабильный штат (по RR): Alaska
+Корреляция JCR vs JDR: -0.327

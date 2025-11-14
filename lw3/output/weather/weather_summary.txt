@@ -1,0 +1,6 @@
+Самые холодные локации: Utqiagvik (Barrow), AK:18.81, Bettles, AK:27.62, Northway, AK:27.75
+Самые теплые локации: San Juan, PR:81.36, Key West, FL:78.75, Miami, FL:77.91
+Минимальный разброс температур: Puerto Rico:2.149, Hawaii:3.356, Florida:9.524
+Максимальный разброс температур: Minnesota:21.179, North Dakota:20.622, South Dakota:20.221
+Самый ветренный штат: New Hampshire
+Корреляция Wind vs Precip: -0.003

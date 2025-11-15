@@ -1,4 +1,5 @@
 from __future__ import annotations
+"""Анализ Global Emissions: выбросы на душу, разброс по странам, корреляции."""
 
 from collections import defaultdict
 from pathlib import Path
@@ -12,6 +13,7 @@ from lw3.utils import Welford, ensure_dir, find_first_match
 
 
 def _resolve_columns(cols: Iterable[str]) -> Dict[str, str]:
+    """Определить столбцы для Global Emissions по ключевым словам."""
     cols = list(cols)
     return {
         "country": find_first_match(cols, ["country"]) or find_first_match(cols, ["nation"]) or find_first_match(cols, ["state"]),
@@ -23,6 +25,10 @@ def _resolve_columns(cols: Iterable[str]) -> Dict[str, str]:
 
 
 def run_all(csv_path: Path | str, parquet_path: Path | str, output_dir: Path | str):
+    """Запустить анализ Global Emissions: per-capita, разброс, корреляции.
+
+    Сохраняет графики и текстовую сводку по результатам расчетов.
+    """
     csv_path = Path(csv_path)
     output_dir = Path(output_dir)
     ensure_dir(output_dir)
@@ -46,7 +52,6 @@ def run_all(csv_path: Path | str, parquet_path: Path | str, output_dir: Path | s
 
     for chunk in read_csv_chunks(csv_path, chunksize=200_000):
         country = col["country"]
-        year = col["year"]
         em = col["emissions"]
         pop = col["population"]
         gdp = col["gdp"]

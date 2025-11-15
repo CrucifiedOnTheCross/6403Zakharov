@@ -1,4 +1,5 @@
 from __future__ import annotations
+"""Анализ Video Games: продажи по годам, оценки по издателям и рейтинги."""
 
 from collections import defaultdict
 from pathlib import Path
@@ -12,6 +13,7 @@ from lw3.utils import Welford, ensure_dir, find_first_match
 
 
 def _resolve_columns(cols: Iterable[str]) -> Dict[str, str]:
+    """Определить столбцы для Video Games по ключевым словам."""
     cols = list(cols)
     return {
         "year": find_first_match(cols, ["year"]) or find_first_match(cols, ["release", "year"]),
@@ -23,6 +25,7 @@ def _resolve_columns(cols: Iterable[str]) -> Dict[str, str]:
 
 
 def run_all(csv_path: Path | str, parquet_path: Path | str, output_dir: Path | str):
+    """Запустить анализ Video Games: продажи, разброс оценок, рейтинги, корреляции."""
     csv_path = Path(csv_path)
     output_dir = Path(output_dir)
     ensure_dir(output_dir)

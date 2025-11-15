@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+"""Компоненты пайплайна чтения CSV чанками и простые генераторы."""
+
 from pathlib import Path
 from typing import Generator, Iterable, Optional
 

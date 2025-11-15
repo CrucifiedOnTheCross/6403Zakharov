@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 
 
 def _wrap_labels(labels: list[str], max_chars: int = 12) -> list[str]:
+    """Перенос длинных меток по словам на несколько строк для читаемости."""
     wrapped = []
     for s in labels:
         if len(s) <= max_chars:
@@ -41,6 +42,7 @@ def save_bar(
     horizontal: Optional[bool] = None,
     max_bars_per_plot: Optional[int] = None,
 ):
+    """Сохранить bar chart с авто-пагинацией и опциональными доверительными интервалами."""
     labels = list(labels)
     values = list(values)
 
@@ -53,10 +55,10 @@ def save_bar(
         # разбиваем на части и сохраняем несколько файлов
         output_path = Path(output_path)
         for i in range(0, n, max_bars_per_plot):
-            sl_labels = labels[i : i + max_bars_per_plot]
-            sl_values = values[i : i + max_bars_per_plot]
-            sl_ci_low = list(ci_low)[i : i + max_bars_per_plot] if ci_low is not None else None
-            sl_ci_high = list(ci_high)[i : i + max_bars_per_plot] if ci_high is not None else None
+            sl_labels = labels[i:i + max_bars_per_plot]
+            sl_values = values[i:i + max_bars_per_plot]
+            sl_ci_low = list(ci_low)[i:i + max_bars_per_plot] if ci_low is not None else None
+            sl_ci_high = list(ci_high)[i:i + max_bars_per_plot] if ci_high is not None else None
             # первый кусок сохраняем в исходное имя, остальные — с суффиксом
             if i == 0:
                 out = output_path
@@ -80,6 +82,7 @@ def _save_bar_single(
     rotation: int = 45,
     horizontal: Optional[bool] = None,
 ):
+    """Внутренний помощник для отрисовки одного bar chart (гориз/верт)."""
     n = len(labels)
     # Автовыбор: при большом числе меток делаем горизонтальный бар
     if horizontal is None:
@@ -131,6 +134,7 @@ def _save_bar_single(
 
 
 def save_line(labels: Iterable[str], values: Iterable[float], *, title: str, ylabel: str, output_path: Path | str):
+    """Сохранить линейный график по меткам оси X и значениям."""
     labels = list(labels)
     values = list(values)
     x = range(len(labels))
@@ -148,6 +152,7 @@ def save_line(labels: Iterable[str], values: Iterable[float], *, title: str, yla
 
 
 def save_scatter(x_values: Iterable[float], y_values: Iterable[float], *, title: str, xlabel: str, ylabel: str, output_path: Path | str):
+    """Сохранить scatter plot для двух массивов значений."""
     x_values = list(x_values)
     y_values = list(y_values)
     plt.figure(figsize=(8, 6))

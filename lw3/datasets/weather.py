@@ -1,4 +1,5 @@
 from __future__ import annotations
+"""Анализ Weather: температуры по локациям, разброс по штатам и ветер."""
 
 from collections import defaultdict
 from pathlib import Path
@@ -9,10 +10,11 @@ import pandas as pd
 
 from lw3.pipeline import read_csv_chunks
 from lw3.plots import save_bar, save_line, save_scatter
-from lw3.utils import Welford, ci95_mean, ensure_dir, find_first_match, moving_average
+from lw3.utils import Welford, ensure_dir, find_first_match, moving_average
 
 
 def _resolve_columns(cols: Iterable[str]) -> Dict[str, str]:
+    """Определить столбцы для Weather по ключевым словам."""
     cols = list(cols)
     return {
         "temp_avg": find_first_match(cols, ["temp", "avg"]) or find_first_match(cols, ["temperature", "average"]) or find_first_match(cols, ["avg", "temperature"]),
@@ -26,6 +28,7 @@ def _resolve_columns(cols: Iterable[str]) -> Dict[str, str]:
 
 
 def run_all(csv_path: Path | str, parquet_path: Path | str, output_dir: Path | str):
+    """Запустить анализ Weather: температура по локациям, разброс по штатам, ветер."""
     csv_path = Path(csv_path)
     output_dir = Path(output_dir)
     ensure_dir(output_dir)
@@ -67,9 +70,9 @@ def run_all(csv_path: Path | str, parquet_path: Path | str, output_dir: Path | s
             g1["tavg"] = chunk[tavg]
             agg = g1.groupby(loc).agg({"tavg": ["sum", "count"]})
             agg.columns = ["sum", "cnt"]
-            for l, row in agg.iterrows():
-                sum_cnt_loc[str(l)]["sum"] += float(row["sum"])
-                sum_cnt_loc[str(l)]["cnt"] += int(row["cnt"])
+            for loc_name, row in agg.iterrows():
+                sum_cnt_loc[str(loc_name)]["sum"] += float(row["sum"])
+                sum_cnt_loc[str(loc_name)]["cnt"] += int(row["cnt"])
 
         # Task 2: разброс среднемесячных температур по штатам
         if st and tavg and st in chunk.columns and tavg in chunk.columns:
@@ -100,11 +103,11 @@ def run_all(csv_path: Path | str, parquet_path: Path | str, output_dir: Path | s
             corr_y.extend(pd.to_numeric(chunk[prec], errors="coerce").fillna(0).tolist())
 
     # Итоги Task 1
-    loc_avg = {l: (v["sum"] / v["cnt"]) if v["cnt"] else np.nan for l, v in sum_cnt_loc.items()}
-    loc_sorted = sorted([(l, a) for l, a in loc_avg.items() if not pd.isna(a)], key=lambda x: x[1])
+    loc_avg = {loc: (v["sum"] / v["cnt"]) if v["cnt"] else np.nan for loc, v in sum_cnt_loc.items()}
+    loc_sorted = sorted([(loc, a) for loc, a in loc_avg.items() if not pd.isna(a)], key=lambda x: x[1])
     low3 = loc_sorted[:3]
     high3 = loc_sorted[-3:][::-1]
-    save_bar([l for l, _ in loc_sorted], [v for _, v in loc_sorted], title="Weather: Средняя температура по локациям", ylabel="Температура", output_path=output_dir / "weather_location_avg_temp.png", rotation=90)
+    save_bar([loc for loc, _ in loc_sorted], [v for _, v in loc_sorted], title="Weather: Средняя температура по локациям", ylabel="Температура", output_path=output_dir / "weather_location_avg_temp.png", rotation=90)
 
     # Итоги Task 2
     state_std = [(s, w.std) for s, w in welford_state.items() if w.count > 1]
@@ -129,8 +132,8 @@ def run_all(csv_path: Path | str, parquet_path: Path | str, output_dir: Path | s
     corr = float(pd.Series(corr_x).corr(pd.Series(corr_y))) if corr_x and corr_y else float("nan")
     save_scatter(corr_x, corr_y, title=f"Weather: Wind vs Precip (r={corr:.3f})", xlabel="Wind.Speed", ylabel="Precipitation", output_path=output_dir / "weather_corr.png")
     summary = [
-        "Самые холодные локации: " + ", ".join([f"{l}:{v:.2f}" for l, v in low3]),
-        "Самые теплые локации: " + ", ".join([f"{l}:{v:.2f}" for l, v in high3]),
+        "Самые холодные локации: " + ", ".join([f"{loc}:{v:.2f}" for loc, v in low3]),
+        "Самые теплые локации: " + ", ".join([f"{loc}:{v:.2f}" for loc, v in high3]),
         "Минимальный разброс температур: " + ", ".join([f"{s}:{v:.3f}" for s, v in low3_std]),
         "Максимальный разброс температур: " + ", ".join([f"{s}:{v:.3f}" for s, v in high3_std]),
         f"Самый ветренный штат: {windy_state}",

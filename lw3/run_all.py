@@ -20,6 +20,7 @@ OUT = BASE / "output"
 
 
 def main():
+    """Запустить полный пайплайн: подготовка Parquet, анализ и доп. задания."""
     OUT.mkdir(parents=True, exist_ok=True)
 
     # Обеспечить parquet для каждого датасета (используем только релевантные столбцы при необходимости)
@@ -38,6 +39,7 @@ def main():
 
     # Доп. задания: считать только релевантные столбцы из Parquet и построить scatter
     def parquet_scatter(dataset_name: str, csv_path: Path, parquet_path: Path, out_path: Path):
+        """Построить scatter из релевантных столбцов, считанных из Parquet."""
         # получить схему по CSV (только имена столбцов)
         cols = pd.read_csv(csv_path, nrows=0).columns.tolist()
         if dataset_name == "airlines":
@@ -67,16 +69,22 @@ def main():
             corr = float(x.corr(y)) if len(x) and len(y) else float("nan")
             save_scatter(x.tolist(), y.tolist(), title=f"VideoGames Parquet: Review vs Sales (r={corr:.3f})", xlabel="Review.Score", ylabel="Sales", output_path=out_path / "vg_corr_parquet.png")
         elif dataset_name == "global_emissions":
-            xcol = find_first_match(cols, ["population"]) or find_first_match(cols, ["pop"]) 
-            ycol = find_first_match(cols, ["emissions", "total"]) or find_first_match(cols, ["co2"]) or find_first_match(cols, ["ghg"]) 
+            xcol = find_first_match(cols, ["population"]) or find_first_match(cols, ["pop"])
+            ycol = (
+                find_first_match(cols, ["emissions", "total"]) or find_first_match(cols, ["co2"]) or find_first_match(cols, ["ghg"])
+            )
             df = pd.read_parquet(parquet_path, columns=[c for c in [xcol, ycol] if c])
             x = pd.to_numeric(df.get(xcol, 0), errors="coerce").fillna(0)
             y = pd.to_numeric(df.get(ycol, 0), errors="coerce").fillna(0)
             corr = float(x.corr(y)) if len(x) and len(y) else float("nan")
             save_scatter(x.tolist(), y.tolist(), title=f"Emissions Parquet: Pop vs Emissions (r={corr:.3f})", xlabel="Population", ylabel="Emissions", output_path=out_path / "emissions_corr_parquet.png")
         elif dataset_name == "business_dynamics":
-            xcol = find_first_match(cols, ["job", "creation", "rate"]) or find_first_match(cols, ["creation", "rate"]) 
-            ycol = find_first_match(cols, ["job", "destruction", "rate"]) or find_first_match(cols, ["destruction", "rate"]) 
+            xcol = (
+                find_first_match(cols, ["job", "creation", "rate"]) or find_first_match(cols, ["creation", "rate"])
+            )
+            ycol = (
+                find_first_match(cols, ["job", "destruction", "rate"]) or find_first_match(cols, ["destruction", "rate"])
+            )
             df = pd.read_parquet(parquet_path, columns=[c for c in [xcol, ycol] if c])
             x = pd.to_numeric(df.get(xcol, 0), errors="coerce").fillna(0)
             y = pd.to_numeric(df.get(ycol, 0), errors="coerce").fillna(0)

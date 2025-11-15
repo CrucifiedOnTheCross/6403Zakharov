@@ -1,8 +1,9 @@
 from __future__ import annotations
+"""Анализ датасета Airlines: задержки, отмены, разброс и динамика по аэропортам."""
 
 from collections import defaultdict
 from pathlib import Path
-from typing import Dict, Iterable, Tuple
+from typing import Dict, Iterable
 
 import numpy as np
 import pandas as pd
@@ -13,6 +14,7 @@ from lw3.utils import Welford, ci95_mean, ensure_dir, find_first_match, moving_a
 
 
 def _resolve_columns(cols: Iterable[str]) -> Dict[str, str]:
+    """Определить релевантные столбцы для набора Airlines по ключевым словам."""
     cols = list(cols)
     mapping = {
         "total": find_first_match(cols, ["flights", "total"]) or find_first_match(cols, ["total", "flights"]),
@@ -26,6 +28,14 @@ def _resolve_columns(cols: Iterable[str]) -> Dict[str, str]:
 
 
 def run_all(csv_path: Path | str, parquet_path: Path | str, output_dir: Path | str):
+    """Запустить анализ датасета Airlines и сохранить графики и сводку.
+
+    - Читает CSV чанками через генератор
+    - Считает долю задержанных/отмененных по месяцам (с CI)
+    - Оценивает разброс доли по аэропортам
+    - Находит самый загруженный аэропорт и его динамику
+    - Строит scatter и считает корреляцию
+    """
     csv_path = Path(csv_path)
     output_dir = Path(output_dir)
     ensure_dir(output_dir)

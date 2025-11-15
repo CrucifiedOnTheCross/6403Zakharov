@@ -1,4 +1,5 @@
 from __future__ import annotations
+"""Анализ Business Dynamics: NJCR, RR, динамика JDR и корреляции."""
 
 from collections import defaultdict
 from pathlib import Path
@@ -12,6 +13,7 @@ from lw3.utils import Welford, ensure_dir, find_first_match, moving_average
 
 
 def _resolve_columns(cols: Iterable[str]) -> Dict[str, str]:
+    """Определить релевантные столбцы для Business Dynamics по ключевым словам."""
     cols = list(cols)
     return {
         "state": find_first_match(cols, ["state"]) or find_first_match(cols, ["region"]),
@@ -24,6 +26,11 @@ def _resolve_columns(cols: Iterable[str]) -> Dict[str, str]:
 
 
 def run_all(csv_path: Path | str, parquet_path: Path | str, output_dir: Path | str):
+    """Запустить анализ датасета Business Dynamics и сохранить результаты.
+
+    Считает средний Net Job Creation Rate, разброс Reallocation Rate,
+    строит динамику JDR для наиболее нестабильного штата и вычисляет корреляции.
+    """
     csv_path = Path(csv_path)
     output_dir = Path(output_dir)
     ensure_dir(output_dir)

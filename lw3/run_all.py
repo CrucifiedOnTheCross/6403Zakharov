@@ -32,38 +32,22 @@ def main():
         )
 
     # Доп. задания: считать только релевантные столбцы из Parquet и построить scatter
-    def parquet_scatter(
-        dataset_name: str,
-        csv_path: Path,
-        parquet_path: Path,
-        out_path: Path,
-    ):
-        """Построить scatter из релевантных столбцов, считанных из Parquet."""
-        # получить схему по CSV (только имена столбцов)
-        cols = pd.read_csv(csv_path, nrows=0).columns.tolist()
-        if dataset_name == "business_dynamics":
-            xcol = (
-                "Data.Job Creation.Rate"
-                if "Data.Job Creation.Rate" in cols
-                else None
-            )
-            ycol = (
-                "Data.Job Destruction.Rate"
-                if "Data.Job Destruction.Rate" in cols
-                else None
-            )
-            df = pd.read_parquet(parquet_path, columns=[c for c in [xcol, ycol] if c])
-            x = pd.to_numeric(df.get(xcol, 0), errors="coerce").fillna(0)
-            y = pd.to_numeric(df.get(ycol, 0), errors="coerce").fillna(0)
-            corr = float(x.corr(y)) if len(x) and len(y) else float("nan")
-            save_scatter(
-                x.tolist(),
-                y.tolist(),
-                title=f"BusinessDynamics Parquet: JCR vs JDR (r={corr:.3f})",
-                xlabel="Job Creation Rate",
-                ylabel="Job Destruction Rate",
-                output_path=out_path / "bd_corr_parquet.png",
-            )
+    def parquet_scatter_bd(csv_path: Path, parquet_path: Path, out_path: Path):
+        """Построить scatter JCR vs JDR из Parquet (только нужные столбцы)."""
+        xcol = "Data.Job Creation.Rate"
+        ycol = "Data.Job Destruction.Rate"
+        df = pd.read_parquet(parquet_path, columns=[xcol, ycol])
+        x = pd.to_numeric(df[xcol], errors="coerce").fillna(0)
+        y = pd.to_numeric(df[ycol], errors="coerce").fillna(0)
+        corr = float(x.corr(y)) if len(x) and len(y) else float("nan")
+        save_scatter(
+            x.tolist(),
+            y.tolist(),
+            title=f"BusinessDynamics Parquet: JCR vs JDR (r={corr:.3f})",
+            xlabel="Job Creation Rate",
+            ylabel="Job Destruction Rate",
+            output_path=out_path / "bd_corr_parquet.png",
+        )
 
     # Запустить задачи для каждого датасета (основные + графики + дополнительные)
     run_bd(
@@ -72,8 +56,7 @@ def main():
         OUT / "business_dynamics",
     )
 
-    parquet_scatter(
-        "business_dynamics",
+    parquet_scatter_bd(
         files["business_dynamics"],
         CACHE / "business_dynamics.parquet",
         OUT,

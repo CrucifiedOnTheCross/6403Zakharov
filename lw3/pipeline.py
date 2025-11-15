@@ -3,7 +3,7 @@ from __future__ import annotations
 """Компоненты пайплайна чтения CSV чанками и простые генераторы."""
 
 from pathlib import Path
-from typing import Generator, Iterable, Optional
+from typing import Generator, Optional, Iterable
 
 import pandas as pd
 
@@ -22,9 +22,3 @@ def read_csv_chunks(
     path = Path(path)
     for chunk in pd.read_csv(path, chunksize=chunksize, usecols=usecols, dtype=dtype):
         yield chunk
-
-
-def pass_through(df_iter: Iterable[pd.DataFrame]) -> Generator[pd.DataFrame, None, None]:
-    """Простой генератор-прослойка для композиции пайплайнов."""
-    for df in df_iter:
-        yield df

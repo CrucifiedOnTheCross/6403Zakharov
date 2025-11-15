@@ -4,7 +4,7 @@ from __future__ import annotations
 from collections import defaultdict
 from pathlib import Path
 from typing import Dict, Iterable
-from math import sqrt
+import numpy as np
 
 import pandas as pd
 
@@ -15,30 +15,13 @@ from lw3.utils import Welford, ensure_dir, moving_average
 
 def _resolve_columns(cols: Iterable[str]) -> Dict[str, str]:
     """Определить столбцы по известным точным именам из CORGIS."""
-    cols = list(cols)
     return {
-        "state": "State" if "State" in cols else None,
-        "year": "Year" if "Year" in cols else None,
-        "net_job_creation_rate": (
-            "Data.Calculated.Net Job Creation Rate"
-            if "Data.Calculated.Net Job Creation Rate" in cols
-            else None
-        ),
-        "reallocation_rate": (
-            "Data.Calculated.Reallocation Rate"
-            if "Data.Calculated.Reallocation Rate" in cols
-            else None
-        ),
-        "job_destruction_rate": (
-            "Data.Job Destruction.Rate"
-            if "Data.Job Destruction.Rate" in cols
-            else None
-        ),
-        "job_creation_rate": (
-            "Data.Job Creation.Rate"
-            if "Data.Job Creation.Rate" in cols
-            else None
-        ),
+        "state": "State",
+        "year": "Year",
+        "net_job_creation_rate": "Data.Calculated.Net Job Creation Rate",
+        "reallocation_rate": "Data.Calculated.Reallocation Rate",
+        "job_destruction_rate": "Data.Job Destruction.Rate",
+        "job_creation_rate": "Data.Job Creation.Rate",
     }
 
 
@@ -125,18 +108,21 @@ def run_all(csv_path: Path | str, parquet_path: Path | str, output_dir: Path | s
     njcr_top3 = avg_sorted[-3:][::-1]
     njcr_labels = [s for s, _ in (njcr_top3 + njcr_bottom3)]
     njcr_means = [avg_njcr_vals[s] for s in njcr_labels]
-    njcr_ci_low = []
-    njcr_ci_high = []
-    for s in njcr_labels:
-        w = welford_njcr.get(s)
-        if w and w.count > 1 and not pd.isna(w.std):
-            se = w.std / sqrt(w.count)
-            z = 1.96
-            njcr_ci_low.append(w.mean - z * se)
-            njcr_ci_high.append(w.mean + z * se)
-        else:
-            njcr_ci_low.append(float("nan"))
-            njcr_ci_high.append(float("nan"))
+    z = 1.96
+    means_arr = np.asarray(njcr_means, dtype=float)
+    stds_arr = np.asarray([
+        (welford_njcr.get(s).std if welford_njcr.get(s) else np.nan)
+        for s in njcr_labels
+    ], dtype=float)
+    cnts_arr = np.asarray([
+        (welford_njcr.get(s).count if welford_njcr.get(s) else 0)
+        for s in njcr_labels
+    ], dtype=int)
+    mask = (cnts_arr > 1) & (~np.isnan(stds_arr))
+    se = np.full_like(stds_arr, np.nan, dtype=float)
+    se[mask] = stds_arr[mask] / np.sqrt(cnts_arr[mask])
+    njcr_ci_low = (means_arr - z * se).tolist()
+    njcr_ci_high = (means_arr + z * se).tolist()
     save_bar(
         njcr_labels,
         njcr_means,
@@ -157,18 +143,20 @@ def run_all(csv_path: Path | str, parquet_path: Path | str, output_dir: Path | s
     rr_top3 = spread_sorted[-3:][::-1]
     rr_labels = [s for s, _ in (rr_top3 + rr_bottom3)]
     rr_means = [spread_rr[s].mean for s in rr_labels]
-    rr_ci_low = []
-    rr_ci_high = []
-    for s in rr_labels:
-        w = spread_rr.get(s)
-        if w and w.count > 1 and not pd.isna(w.std):
-            se = w.std / sqrt(w.count)
-            z = 1.96
-            rr_ci_low.append(w.mean - z * se)
-            rr_ci_high.append(w.mean + z * se)
-        else:
-            rr_ci_low.append(float("nan"))
-            rr_ci_high.append(float("nan"))
+    means_arr_rr = np.asarray(rr_means, dtype=float)
+    stds_arr_rr = np.asarray([
+        (spread_rr.get(s).std if spread_rr.get(s) else np.nan)
+        for s in rr_labels
+    ], dtype=float)
+    cnts_arr_rr = np.asarray([
+        (spread_rr.get(s).count if spread_rr.get(s) else 0)
+        for s in rr_labels
+    ], dtype=int)
+    mask_rr = (cnts_arr_rr > 1) & (~np.isnan(stds_arr_rr))
+    se_rr = np.full_like(stds_arr_rr, np.nan, dtype=float)
+    se_rr[mask_rr] = stds_arr_rr[mask_rr] / np.sqrt(cnts_arr_rr[mask_rr])
+    rr_ci_low = (means_arr_rr - z * se_rr).tolist()
+    rr_ci_high = (means_arr_rr + z * se_rr).tolist()
     save_bar(
         rr_labels,
         rr_means,

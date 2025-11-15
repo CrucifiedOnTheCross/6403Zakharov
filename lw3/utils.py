@@ -3,9 +3,7 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable
 
-import numpy as np
 import pandas as pd
 
 
@@ -16,7 +14,6 @@ class Welford:
     M2: float = 0.0
 
     def update(self, x: float):
-        """Обновить накопители по алгоритму Вэлфорда для нового значения x."""
         self.count += 1
         delta = x - self.mean
         self.mean += delta / self.count
@@ -35,27 +32,9 @@ class Welford:
         return float("nan") if math.isnan(v) else math.sqrt(v)
 
 
-def ci95_mean(values: Iterable[float]) -> tuple[float, float, float, int]:
-    """Вернуть (mean, ci_low, ci_high, n) для 95% CI.
-
-    Используется нормальное приближение: CI = mean ± 1.96 * (std / sqrt(n)).
-    """
-    arr = np.asarray([v for v in values if not pd.isna(v)], dtype=float)
-    n = len(arr)
-    if n == 0:
-        return (float("nan"), float("nan"), float("nan"), 0)
-    mean = float(arr.mean())
-    std = float(arr.std(ddof=1)) if n > 1 else 0.0
-    se = std / math.sqrt(n) if n > 1 else 0.0
-    z = 1.96
-    return (mean, mean - z * se, mean + z * se, n)
-
-
 def moving_average(series: pd.Series, window: int = 3) -> pd.Series:
-    """Скользящее среднее по ряду с окном `window` и min_periods=1."""
     return series.rolling(window=window, min_periods=1).mean()
 
 
 def ensure_dir(path: Path | str):
-    """Создать директорию (включая родительские) при необходимости."""
     Path(path).mkdir(parents=True, exist_ok=True)

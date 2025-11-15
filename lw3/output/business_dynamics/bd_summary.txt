@@ -3,4 +3,4 @@
 Наиболее стабильные штаты (минимальный Std): Pennsylvania:2.784, Kentucky:2.906, Kansas:2.965
 Наиболее турбулентные штаты (максимальный Std): Alaska:9.086, North Dakota:5.414, West Virginia:5.055
 Наиболее нестабильный штат (по RR): Alaska
-Корреляция JCR vs JDR: -0.327
+Корреляция JCR vs JDR: 0.499

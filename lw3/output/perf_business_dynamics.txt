@@ -1,2 +1,2 @@
-CSV: 0.0091s
-Parquet: 0.0447s
+CSV: 0.0076s
+Parquet: 0.0349s

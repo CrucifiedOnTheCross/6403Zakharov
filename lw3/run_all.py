@@ -4,7 +4,6 @@ from pathlib import Path
 
 from lw3.datasets.business_dynamics import run_all as run_bd
 from lw3.parquet_utils import ensure_parquet, compare_read_speed
-from lw3.utils import find_first_match
 from lw3.plots import save_scatter
 import pandas as pd
 
@@ -44,12 +43,14 @@ def main():
         cols = pd.read_csv(csv_path, nrows=0).columns.tolist()
         if dataset_name == "business_dynamics":
             xcol = (
-                find_first_match(cols, ["job", "creation", "rate"]) or
-                find_first_match(cols, ["creation", "rate"])
+                "Data.Job Creation.Rate"
+                if "Data.Job Creation.Rate" in cols
+                else None
             )
             ycol = (
-                find_first_match(cols, ["job", "destruction", "rate"]) or
-                find_first_match(cols, ["destruction", "rate"])
+                "Data.Job Destruction.Rate"
+                if "Data.Job Destruction.Rate" in cols
+                else None
             )
             df = pd.read_parquet(parquet_path, columns=[c for c in [xcol, ycol] if c])
             x = pd.to_numeric(df.get(xcol, 0), errors="coerce").fillna(0)

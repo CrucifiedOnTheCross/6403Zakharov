@@ -4,41 +4,40 @@ from __future__ import annotations
 from collections import defaultdict
 from pathlib import Path
 from typing import Dict, Iterable
+from math import sqrt
 
 import pandas as pd
 
 from lw3.pipeline import read_csv_chunks
-from lw3.plots import save_bar, save_line, save_scatter
-from lw3.utils import Welford, ensure_dir, find_first_match, moving_average
+from lw3.plots import save_bar, save_line_dual, save_scatter
+from lw3.utils import Welford, ensure_dir, moving_average
 
 
 def _resolve_columns(cols: Iterable[str]) -> Dict[str, str]:
-    """Определить релевантные столбцы для Business Dynamics по ключевым словам."""
+    """Определить столбцы по известным точным именам из CORGIS."""
     cols = list(cols)
     return {
-        "state": (
-            find_first_match(cols, ["state"]) or
-            find_first_match(cols, ["region"])
-        ),
-        "year": (
-            find_first_match(cols, ["year"]) or
-            find_first_match(cols, ["time", "year"])
-        ),
+        "state": "State" if "State" in cols else None,
+        "year": "Year" if "Year" in cols else None,
         "net_job_creation_rate": (
-            find_first_match(cols, ["net", "job", "creation", "rate"]) or
-            find_first_match(cols, ["job", "creation", "rate"])
+            "Data.Calculated.Net Job Creation Rate"
+            if "Data.Calculated.Net Job Creation Rate" in cols
+            else None
         ),
         "reallocation_rate": (
-            find_first_match(cols, ["reallocation", "rate"]) or
-            find_first_match(cols, ["labor", "reallocation"])
+            "Data.Calculated.Reallocation Rate"
+            if "Data.Calculated.Reallocation Rate" in cols
+            else None
         ),
         "job_destruction_rate": (
-            find_first_match(cols, ["job", "destruction", "rate"]) or
-            find_first_match(cols, ["destruction", "rate"])
+            "Data.Job Destruction.Rate"
+            if "Data.Job Destruction.Rate" in cols
+            else None
         ),
         "job_creation_rate": (
-            find_first_match(cols, ["job", "creation", "rate"]) or
-            find_first_match(cols, ["creation", "rate"])
+            "Data.Job Creation.Rate"
+            if "Data.Job Creation.Rate" in cols
+            else None
         ),
     }
 
@@ -53,11 +52,12 @@ def run_all(csv_path: Path | str, parquet_path: Path | str, output_dir: Path | s
     output_dir = Path(output_dir)
     ensure_dir(output_dir)
 
-    first = next(read_csv_chunks(csv_path, chunksize=50_000))
+    first = next(read_csv_chunks(csv_path, chunksize=1000))
     col = _resolve_columns(first.columns)
 
     # Task 1: средний темп создания рабочих мест по штатам
     avg_njcr = defaultdict(lambda: {"sum": 0.0, "cnt": 0})
+    welford_njcr = defaultdict(Welford)
 
     # Task 2: разброс показателя Reallocation Rate
     spread_rr = defaultdict(Welford)
@@ -89,6 +89,9 @@ def run_all(csv_path: Path | str, parquet_path: Path | str, output_dir: Path | s
             for s, row in agg1.iterrows():
                 avg_njcr[str(s)]["sum"] += float(row["sum"])
                 avg_njcr[str(s)]["cnt"] += int(row["cnt"])
+            for s, v in zip(chunk[st], chunk[njcr]):
+                if pd.notna(v):
+                    welford_njcr[str(s)].update(float(v))
 
         if st and rr and st in chunk.columns and rr in chunk.columns:
             for s, v in zip(chunk[st], chunk[rr]):
@@ -117,26 +120,64 @@ def run_all(csv_path: Path | str, parquet_path: Path | str, output_dir: Path | s
         [(s, v) for s, v in avg_njcr_vals.items() if not pd.isna(v)],
         key=lambda x: x[1],
     )
+    # Топ-3 и боттом-3 по среднему NJCR
+    njcr_bottom3 = avg_sorted[:3]
+    njcr_top3 = avg_sorted[-3:][::-1]
+    njcr_labels = [s for s, _ in (njcr_top3 + njcr_bottom3)]
+    njcr_means = [avg_njcr_vals[s] for s in njcr_labels]
+    njcr_ci_low = []
+    njcr_ci_high = []
+    for s in njcr_labels:
+        w = welford_njcr.get(s)
+        if w and w.count > 1 and not pd.isna(w.std):
+            se = w.std / sqrt(w.count)
+            z = 1.96
+            njcr_ci_low.append(w.mean - z * se)
+            njcr_ci_high.append(w.mean + z * se)
+        else:
+            njcr_ci_low.append(float("nan"))
+            njcr_ci_high.append(float("nan"))
     save_bar(
-        [s for s, _ in avg_sorted],
-        [v for _, v in avg_sorted],
-        title="BusinessDynamics: Средний Net Job Creation Rate по штатам",
+        njcr_labels,
+        njcr_means,
+        title="BusinessDynamics: Топ/Боттом NJCR (95% CI)",
         ylabel="Rate",
-        output_path=output_dir / "bd_avg_njcr.png",
+        output_path=output_dir / "bd_njcr_top_bottom.png",
         rotation=90,
+        ci_low=njcr_ci_low,
+        ci_high=njcr_ci_high,
     )
 
     spread_sorted = sorted(
         [(s, w.std) for s, w in spread_rr.items() if w.count > 1],
         key=lambda x: x[1],
     )
+    # Топ-3 стабильные (минимальный Std) и топ-3 турбулентные (максимальный Std)
+    rr_bottom3 = spread_sorted[:3]
+    rr_top3 = spread_sorted[-3:][::-1]
+    rr_labels = [s for s, _ in (rr_top3 + rr_bottom3)]
+    rr_means = [spread_rr[s].mean for s in rr_labels]
+    rr_ci_low = []
+    rr_ci_high = []
+    for s in rr_labels:
+        w = spread_rr.get(s)
+        if w and w.count > 1 and not pd.isna(w.std):
+            se = w.std / sqrt(w.count)
+            z = 1.96
+            rr_ci_low.append(w.mean - z * se)
+            rr_ci_high.append(w.mean + z * se)
+        else:
+            rr_ci_low.append(float("nan"))
+            rr_ci_high.append(float("nan"))
     save_bar(
-        [s for s, _ in spread_sorted],
-        [v for _, v in spread_sorted],
-        title="BusinessDynamics: Разброс Reallocation Rate",
-        ylabel="Std",
-        output_path=output_dir / "bd_spread_rr.png",
+        rr_labels,
+        rr_means,
+        title="BusinessDynamics: Топ/Боттом RR (95% CI)",
+        ylabel="Rate",
+        output_path=output_dir / "bd_rr_top_bottom_ci.png",
         rotation=90,
+        ci_low=rr_ci_low,
+        ci_high=rr_ci_high,
     )
 
     # Наиболее нестабильный штат по Reallocation Rate
@@ -146,19 +187,15 @@ def run_all(csv_path: Path | str, parquet_path: Path | str, output_dir: Path | s
         labels = [str(y) for y, _ in xs]
         vals = [v for _, v in xs]
         ma = moving_average(pd.Series(vals), window=3)
-        save_line(
+        save_line_dual(
             labels,
             vals,
-            title=f"BusinessDynamics: Job Destruction Rate — {unstable_state}",
+            ma.tolist(),
+            title=f"BusinessDynamics: JDR + MA — {unstable_state}",
             ylabel="Rate",
             output_path=output_dir / "bd_jdr_unstable.png",
-        )
-        save_line(
-            labels,
-            ma.tolist(),
-            title=f"BusinessDynamics: JDR MA — {unstable_state}",
-            ylabel="Rate (MA)",
-            output_path=output_dir / "bd_jdr_unstable_ma.png",
+            legend1="JDR",
+            legend2="MA(3)",
         )
 
     corr = (

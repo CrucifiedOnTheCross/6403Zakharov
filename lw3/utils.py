@@ -1,42 +1,12 @@
 from __future__ import annotations
 
 import math
-import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable, List, Optional, Sequence
+from typing import Iterable
 
 import numpy as np
 import pandas as pd
-
-
-def _normalize_colname(name: str) -> str:
-    """Нормализовать имя столбца: нижний регистр и замена не-алфавитных на пробелы."""
-    return re.sub(r"[^a-z0-9]+", " ", name.lower()).strip()
-
-
-def find_first_match(columns: Sequence[str], keywords: Sequence[str]) -> Optional[str]:
-    """Найти первый столбец, содержащий все указанные ключевые слова.
-
-    Сравнение ведется регистронезависимо по нормализованным именам столбцов.
-    """
-    keys = [_normalize_colname(k) for k in keywords]
-    for col in columns:
-        norm = _normalize_colname(col)
-        if all(k in norm for k in keys):
-            return col
-    return None
-
-
-def find_all_matches(columns: Sequence[str], keywords: Sequence[str]) -> List[str]:
-    """Вернуть все столбцы, содержащие указанные ключевые слова."""
-    keys = [_normalize_colname(k) for k in keywords]
-    result: List[str] = []
-    for col in columns:
-        norm = _normalize_colname(col)
-        if all(k in norm for k in keys):
-            result.append(col)
-    return result
 
 
 @dataclass

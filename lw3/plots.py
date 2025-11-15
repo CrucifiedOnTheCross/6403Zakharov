@@ -38,68 +38,32 @@ def save_bar(
     output_path: Path | str,
     ci_low: Optional[Iterable[float]] = None,
     ci_high: Optional[Iterable[float]] = None,
-    rotation: int = 45,
-    horizontal: Optional[bool] = None,
-    max_bars_per_plot: Optional[int] = None,
+    rotation: int = 45
+    
 ):
-    """Сохранить bar chart с авто-пагинацией и опциональными ДИ.
-
-    Доверительные интервалы передаются через `ci_low`/`ci_high`.
-    """
+    """Сохранить статический bar chart с опциональными доверительными интервалами."""
     labels = list(labels)
     values = list(values)
+    x = range(len(labels))
 
-    # Авто-пагинация при очень большом числе столбцов
-    n = len(labels)
-    if max_bars_per_plot is None:
-        max_bars_per_plot = 60  # разумный лимит по ширине
-
-    if n > max_bars_per_plot:
-        output_path = Path(output_path)
-        for i in range(0, n, max_bars_per_plot):
-            sl_labels = labels[i:i + max_bars_per_plot]
-            sl_values = values[i:i + max_bars_per_plot]
-            sl_ci_low = (
-                list(ci_low)[i:i + max_bars_per_plot] if ci_low is not None else None
-            )
-            sl_ci_high = (
-                list(ci_high)[i:i + max_bars_per_plot] if ci_high is not None else None
-            )
-
-            if i == 0:
-                out = output_path
-                title_i = title
-            else:
-                part = (i // max_bars_per_plot) + 1
-                out = output_path.with_name(
-                    f"{output_path.stem}_part{part}{output_path.suffix}"
-                )
-                title_i = f"{title} (part {part})"
-
-            _save_bar_single(
-                sl_labels,
-                sl_values,
-                title=title_i,
-                ylabel=ylabel,
-                output_path=out,
-                ci_low=sl_ci_low,
-                ci_high=sl_ci_high,
-                rotation=rotation,
-                horizontal=horizontal,
-            )
-        return
-
-    _save_bar_single(
-        labels,
-        values,
-        title=title,
-        ylabel=ylabel,
-        output_path=output_path,
-        ci_low=ci_low,
-        ci_high=ci_high,
-        rotation=rotation,
-        horizontal=horizontal,
-    )
+    plt.figure(figsize=(10, 6))
+    plt.bar(x, values)
+    if ci_low is not None and ci_high is not None:
+        lows = list(ci_low)
+        highs = list(ci_high)
+        yerr = [
+            [max(0.0, v - l) for v, l in zip(values, lows)],
+            [max(0.0, h - v) for v, h in zip(values, highs)],
+        ]
+        plt.errorbar(x, values, yerr=yerr, fmt="none", ecolor="black", capsize=4)
+    plt.xticks(x, labels, rotation=rotation, ha="right", fontsize=8)
+    plt.ylabel(ylabel)
+    plt.title(title)
+    plt.grid(True, axis="y", alpha=0.2)
+    plt.tight_layout()
+    Path(output_path).parent.mkdir(parents=True, exist_ok=True)
+    plt.savefig(output_path)
+    plt.close()
 
 
 def _save_bar_single(

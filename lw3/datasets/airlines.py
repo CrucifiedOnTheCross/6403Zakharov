@@ -17,12 +17,31 @@ def _resolve_columns(cols: Iterable[str]) -> Dict[str, str]:
     """Определить релевантные столбцы для набора Airlines по ключевым словам."""
     cols = list(cols)
     mapping = {
-        "total": find_first_match(cols, ["flights", "total"]) or find_first_match(cols, ["total", "flights"]),
-        "delayed": find_first_match(cols, ["flights", "delay"]) or find_first_match(cols, ["delayed", "flights"]),
-        "cancelled": find_first_match(cols, ["flights", "cancel"]) or find_first_match(cols, ["cancelled", "flights"]),
-        "month": find_first_match(cols, ["time", "month"]) or find_first_match(cols, ["month"]),
-        "year": find_first_match(cols, ["time", "year"]) or find_first_match(cols, ["year"]),
-        "airport": find_first_match(cols, ["airport", "code"]) or find_first_match(cols, ["airport", "name"]) or find_first_match(cols, ["airport"]),
+        "total": (
+            find_first_match(cols, ["flights", "total"]) or
+            find_first_match(cols, ["total", "flights"])
+        ),
+        "delayed": (
+            find_first_match(cols, ["flights", "delay"]) or
+            find_first_match(cols, ["delayed", "flights"])
+        ),
+        "cancelled": (
+            find_first_match(cols, ["flights", "cancel"]) or
+            find_first_match(cols, ["cancelled", "flights"])
+        ),
+        "month": (
+            find_first_match(cols, ["time", "month"]) or
+            find_first_match(cols, ["month"])
+        ),
+        "year": (
+            find_first_match(cols, ["time", "year"]) or
+            find_first_match(cols, ["year"])
+        ),
+        "airport": (
+            find_first_match(cols, ["airport", "code"]) or
+            find_first_match(cols, ["airport", "name"]) or
+            find_first_match(cols, ["airport"])
+        ),
     }
     return mapping
 
@@ -124,7 +143,10 @@ def run_all(csv_path: Path | str, parquet_path: Path | str, output_dir: Path | s
 
     # Итоги Task 1: лучшие/худшие месяцы
     months = sorted(month_sums.keys())
-    month_rates = {m: (v["del"] / v["tot"]) if v["tot"] else 0.0 for m, v in month_sums.items()}
+    month_rates = {
+        m: (v["del"] / v["tot"]) if v["tot"] else 0.0
+        for m, v in month_sums.items()
+    }
     # CI по месяцам
     ci_low = []
     ci_high = []
@@ -135,20 +157,46 @@ def run_all(csv_path: Path | str, parquet_path: Path | str, output_dir: Path | s
         mean, low, high, _ = ci95_mean(monthly_year_rates.get(m, []))
         ci_low.append(low)
         ci_high.append(high)
-    save_bar(labels, values, title="Airlines: Доля задержанных/отмененных по месяцам", ylabel="Доля", output_path=output_dir / "airlines_month_rates.png", ci_low=ci_low, ci_high=ci_high)
+    save_bar(
+        labels,
+        values,
+        title="Airlines: Доля задержанных/отмененных по месяцам",
+        ylabel="Доля",
+        output_path=output_dir / "airlines_month_rates.png",
+        ci_low=ci_low,
+        ci_high=ci_high,
+    )
 
     best3 = sorted(month_rates.items(), key=lambda x: x[1])[:3]
     worst3 = sorted(month_rates.items(), key=lambda x: x[1], reverse=True)[:3]
 
     # Итоги Task 2: аэропорты по разбросу
     var_items = [(ap, w.std) for ap, w in airport_var.items() if w.count > 1]
-    var_sorted = sorted(var_items, key=lambda x: (float("inf") if pd.isna(x[1]) else x[1]))
+    var_sorted = sorted(
+        var_items,
+        key=lambda x: (float("inf") if pd.isna(x[1]) else x[1]),
+    )
     airports_low3 = var_sorted[:3]
-    airports_high3 = sorted(var_items, key=lambda x: (float("-inf") if pd.isna(x[1]) else x[1]), reverse=True)[:3]
-    save_bar([a for a, _ in var_items], [float(0 if pd.isna(v) else v) for _, v in var_items], title="Airlines: Разброс доли задержанных/отмененных по аэропортам", ylabel="Std", output_path=output_dir / "airlines_airport_spread.png", rotation=90)
+    airports_high3 = sorted(
+        var_items,
+        key=lambda x: (float("-inf") if pd.isna(x[1]) else x[1]),
+        reverse=True,
+    )[:3]
+    save_bar(
+        [a for a, _ in var_items],
+        [float(0 if pd.isna(v) else v) for _, v in var_items],
+        title="Airlines: Разброс доли задержанных/отмененных по аэропортам",
+        ylabel="Std",
+        output_path=output_dir / "airlines_airport_spread.png",
+        rotation=90,
+    )
 
     # Итоги Task 3: самый загруженный аэропорт и его динамика
-    busiest_airport = max(airport_totals.items(), key=lambda x: x[1])[0] if airport_totals else None
+    busiest_airport = (
+        max(airport_totals.items(), key=lambda x: x[1])[0]
+        if airport_totals
+        else None
+    )
     if busiest_airport:
         # собрать ряд по годам-месяцам
         ts = {(y, m): s for (ap, y, m), s in busiest_ts.items() if ap == busiest_airport}
@@ -156,19 +204,48 @@ def run_all(csv_path: Path | str, parquet_path: Path | str, output_dir: Path | s
         labels_ts = [f"{y}-{m:02d}" for (y, m) in keys]
         values_ts = [ts[k] for k in keys]
         ma = moving_average(pd.Series(values_ts), window=3)
-        save_line(labels_ts, values_ts, title=f"Airlines: Потоки для {busiest_airport}", ylabel="Рейсы", output_path=output_dir / "airlines_busiest_airport.png")
-        save_line(labels_ts, ma.tolist(), title=f"Airlines: Скользящее среднее для {busiest_airport}", ylabel="Рейсы (MA)", output_path=output_dir / "airlines_busiest_airport_ma.png")
+        save_line(
+            labels_ts,
+            values_ts,
+            title=f"Airlines: Потоки для {busiest_airport}",
+            ylabel="Рейсы",
+            output_path=output_dir / "airlines_busiest_airport.png",
+        )
+        save_line(
+            labels_ts,
+            ma.tolist(),
+            title=f"Airlines: Скользящее среднее для {busiest_airport}",
+            ylabel="Рейсы (MA)",
+            output_path=output_dir / "airlines_busiest_airport_ma.png",
+        )
 
     # Extra: корреляция и scatter
-    corr = float(pd.Series(corr_x).corr(pd.Series(corr_y))) if corr_x and corr_y else float("nan")
-    save_scatter(corr_x, corr_y, title=f"Airlines: Корреляция задержанных+отмененных vs всего (r={corr:.3f})", xlabel="Задерж+Отмен", ylabel="Всего", output_path=output_dir / "airlines_corr.png")
+    corr = (
+        float(pd.Series(corr_x).corr(pd.Series(corr_y)))
+        if corr_x and corr_y
+        else float("nan")
+    )
+    save_scatter(
+        corr_x,
+        corr_y,
+        title=(
+            f"Airlines: Корреляция задержанных+отмененных vs всего (r={corr:.3f})"
+        ),
+        xlabel="Задерж+Отмен",
+        ylabel="Всего",
+        output_path=output_dir / "airlines_corr.png",
+    )
 
     # Сводка в текстовый файл
     summary = [
-        "Лучшие месяцы (минимальная доля): " + ", ".join([f"{m}:{rate:.3f}" for m, rate in best3]),
-        "Худшие месяцы (максимальная доля): " + ", ".join([f"{m}:{rate:.3f}" for m, rate in worst3]),
-        "Наименьший разброс (Std): " + ", ".join([f"{ap}:{std:.3f}" for ap, std in airports_low3]),
-        "Наибольший разброс (Std): " + ", ".join([f"{ap}:{std:.3f}" for ap, std in airports_high3]),
+        "Лучшие месяцы (минимальная доля): "
+        + ", ".join([f"{m}:{rate:.3f}" for m, rate in best3]),
+        "Худшие месяцы (максимальная доля): "
+        + ", ".join([f"{m}:{rate:.3f}" for m, rate in worst3]),
+        "Наименьший разброс (Std): "
+        + ", ".join([f"{ap}:{std:.3f}" for ap, std in airports_low3]),
+        "Наибольший разброс (Std): "
+        + ", ".join([f"{ap}:{std:.3f}" for ap, std in airports_high3]),
         f"Самый загруженный аэропорт: {busiest_airport}",
         f"Корреляция задержанные+отмененные vs всего: {corr:.3f}",
     ]

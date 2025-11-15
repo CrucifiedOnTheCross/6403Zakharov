@@ -17,13 +17,38 @@ def _resolve_columns(cols: Iterable[str]) -> Dict[str, str]:
     """Определить столбцы для Weather по ключевым словам."""
     cols = list(cols)
     return {
-        "temp_avg": find_first_match(cols, ["temp", "avg"]) or find_first_match(cols, ["temperature", "average"]) or find_first_match(cols, ["avg", "temperature"]),
-        "location": find_first_match(cols, ["location"]) or find_first_match(cols, ["city"]) or find_first_match(cols, ["station"]),
-        "state": find_first_match(cols, ["state"]) or find_first_match(cols, ["region"]),
-        "year": find_first_match(cols, ["year"]) or find_first_match(cols, ["date", "year"]),
-        "month": find_first_match(cols, ["month"]) or find_first_match(cols, ["date", "month"]),
-        "wind": find_first_match(cols, ["wind", "speed"]) or find_first_match(cols, ["wind", "spd"]) or find_first_match(cols, ["wind"]),
-        "prec": find_first_match(cols, ["precip"]) or find_first_match(cols, ["precipitation"]) or find_first_match(cols, ["rain"]),
+        "temp_avg": (
+            find_first_match(cols, ["temp", "avg"]) or
+            find_first_match(cols, ["temperature", "average"]) or
+            find_first_match(cols, ["avg", "temperature"])
+        ),
+        "location": (
+            find_first_match(cols, ["location"]) or
+            find_first_match(cols, ["city"]) or
+            find_first_match(cols, ["station"])
+        ),
+        "state": (
+            find_first_match(cols, ["state"]) or
+            find_first_match(cols, ["region"])
+        ),
+        "year": (
+            find_first_match(cols, ["year"]) or
+            find_first_match(cols, ["date", "year"])
+        ),
+        "month": (
+            find_first_match(cols, ["month"]) or
+            find_first_match(cols, ["date", "month"])
+        ),
+        "wind": (
+            find_first_match(cols, ["wind", "speed"]) or
+            find_first_match(cols, ["wind", "spd"]) or
+            find_first_match(cols, ["wind"])
+        ),
+        "prec": (
+            find_first_match(cols, ["precip"]) or
+            find_first_match(cols, ["precipitation"]) or
+            find_first_match(cols, ["rain"])
+        ),
     }
 
 
@@ -103,39 +128,96 @@ def run_all(csv_path: Path | str, parquet_path: Path | str, output_dir: Path | s
             corr_y.extend(pd.to_numeric(chunk[prec], errors="coerce").fillna(0).tolist())
 
     # Итоги Task 1
-    loc_avg = {loc: (v["sum"] / v["cnt"]) if v["cnt"] else np.nan for loc, v in sum_cnt_loc.items()}
-    loc_sorted = sorted([(loc, a) for loc, a in loc_avg.items() if not pd.isna(a)], key=lambda x: x[1])
+    loc_avg = {
+        loc: (v["sum"] / v["cnt"]) if v["cnt"] else np.nan
+        for loc, v in sum_cnt_loc.items()
+    }
+    loc_sorted = sorted(
+        [(loc, a) for loc, a in loc_avg.items() if not pd.isna(a)],
+        key=lambda x: x[1],
+    )
     low3 = loc_sorted[:3]
     high3 = loc_sorted[-3:][::-1]
-    save_bar([loc for loc, _ in loc_sorted], [v for _, v in loc_sorted], title="Weather: Средняя температура по локациям", ylabel="Температура", output_path=output_dir / "weather_location_avg_temp.png", rotation=90)
+    save_bar(
+        [loc for loc, _ in loc_sorted],
+        [v for _, v in loc_sorted],
+        title="Weather: Средняя температура по локациям",
+        ylabel="Температура",
+        output_path=output_dir / "weather_location_avg_temp.png",
+        rotation=90,
+    )
 
     # Итоги Task 2
     state_std = [(s, w.std) for s, w in welford_state.items() if w.count > 1]
     state_std_sorted = sorted(state_std, key=lambda x: x[1])
     low3_std = state_std_sorted[:3]
     high3_std = state_std_sorted[-3:][::-1]
-    save_bar([s for s, _ in state_std_sorted], [v for _, v in state_std_sorted], title="Weather: Разброс среднемесячной температуры по штатам", ylabel="Std", output_path=output_dir / "weather_state_temp_spread.png", rotation=90)
+    save_bar(
+        [s for s, _ in state_std_sorted],
+        [v for _, v in state_std_sorted],
+        title="Weather: Разброс среднемесячной температуры по штатам",
+        ylabel="Std",
+        output_path=output_dir / "weather_state_temp_spread.png",
+        rotation=90,
+    )
 
     # Итоги Task 3
-    wind_state_avg = {s: (v["sum"] / v["cnt"]) if v["cnt"] else np.nan for s, v in wind_state_sum.items()}
-    windy_state = max([(s, a) for s, a in wind_state_avg.items() if not pd.isna(a)], key=lambda x: x[1])[0] if wind_state_avg else None
+    wind_state_avg = {
+        s: (v["sum"] / v["cnt"]) if v["cnt"] else np.nan
+        for s, v in wind_state_sum.items()
+    }
+    windy_state = (
+        max(
+            [(s, a) for s, a in wind_state_avg.items() if not pd.isna(a)],
+            key=lambda x: x[1],
+        )[0]
+        if wind_state_avg
+        else None
+    )
     if windy_state:
         ts = {(y, m): val for (s, y, m), val in wind_ts.items() if s == windy_state}
         keys = sorted(ts.keys())
         labels = [f"{y}-{m:02d}" for (y, m) in keys]
         vals = [ts[k] for k in keys]
         ma = moving_average(pd.Series(vals), window=3)
-        save_line(labels, vals, title=f"Weather: Ветер в штате {windy_state}", ylabel="Скорость ветра", output_path=output_dir / "weather_windy_state.png")
-        save_line(labels, ma.tolist(), title=f"Weather: Скользящее среднее ветра {windy_state}", ylabel="Скорость ветра (MA)", output_path=output_dir / "weather_windy_state_ma.png")
+        save_line(
+            labels,
+            vals,
+            title=f"Weather: Ветер в штате {windy_state}",
+            ylabel="Скорость ветра",
+            output_path=output_dir / "weather_windy_state.png",
+        )
+        save_line(
+            labels,
+            ma.tolist(),
+            title=f"Weather: Скользящее среднее ветра {windy_state}",
+            ylabel="Скорость ветра (MA)",
+            output_path=output_dir / "weather_windy_state_ma.png",
+        )
 
     # Extra
-    corr = float(pd.Series(corr_x).corr(pd.Series(corr_y))) if corr_x and corr_y else float("nan")
-    save_scatter(corr_x, corr_y, title=f"Weather: Wind vs Precip (r={corr:.3f})", xlabel="Wind.Speed", ylabel="Precipitation", output_path=output_dir / "weather_corr.png")
+    corr = (
+        float(pd.Series(corr_x).corr(pd.Series(corr_y)))
+        if corr_x and corr_y
+        else float("nan")
+    )
+    save_scatter(
+        corr_x,
+        corr_y,
+        title=f"Weather: Wind vs Precip (r={corr:.3f})",
+        xlabel="Wind.Speed",
+        ylabel="Precipitation",
+        output_path=output_dir / "weather_corr.png",
+    )
     summary = [
-        "Самые холодные локации: " + ", ".join([f"{loc}:{v:.2f}" for loc, v in low3]),
-        "Самые теплые локации: " + ", ".join([f"{loc}:{v:.2f}" for loc, v in high3]),
-        "Минимальный разброс температур: " + ", ".join([f"{s}:{v:.3f}" for s, v in low3_std]),
-        "Максимальный разброс температур: " + ", ".join([f"{s}:{v:.3f}" for s, v in high3_std]),
+        "Самые холодные локации: "
+        + ", ".join([f"{loc}:{v:.2f}" for loc, v in low3]),
+        "Самые теплые локации: "
+        + ", ".join([f"{loc}:{v:.2f}" for loc, v in high3]),
+        "Минимальный разброс температур: "
+        + ", ".join([f"{s}:{v:.3f}" for s, v in low3_std]),
+        "Максимальный разброс температур: "
+        + ", ".join([f"{s}:{v:.3f}" for s, v in high3_std]),
         f"Самый ветренный штат: {windy_state}",
         f"Корреляция Wind vs Precip: {corr:.3f}",
     ]

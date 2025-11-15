@@ -42,7 +42,10 @@ def save_bar(
     horizontal: Optional[bool] = None,
     max_bars_per_plot: Optional[int] = None,
 ):
-    """Сохранить bar chart с авто-пагинацией и опциональными доверительными интервалами."""
+    """Сохранить bar chart с авто-пагинацией и опциональными ДИ.
+
+    Доверительные интервалы передаются через `ci_low`/`ci_high`.
+    """
     labels = list(labels)
     values = list(values)
 
@@ -52,22 +55,51 @@ def save_bar(
         max_bars_per_plot = 60  # разумный лимит по ширине
 
     if n > max_bars_per_plot:
-        # разбиваем на части и сохраняем несколько файлов
         output_path = Path(output_path)
         for i in range(0, n, max_bars_per_plot):
             sl_labels = labels[i:i + max_bars_per_plot]
             sl_values = values[i:i + max_bars_per_plot]
-            sl_ci_low = list(ci_low)[i:i + max_bars_per_plot] if ci_low is not None else None
-            sl_ci_high = list(ci_high)[i:i + max_bars_per_plot] if ci_high is not None else None
-            # первый кусок сохраняем в исходное имя, остальные — с суффиксом
+            sl_ci_low = (
+                list(ci_low)[i:i + max_bars_per_plot] if ci_low is not None else None
+            )
+            sl_ci_high = (
+                list(ci_high)[i:i + max_bars_per_plot] if ci_high is not None else None
+            )
+
             if i == 0:
                 out = output_path
+                title_i = title
             else:
-                out = output_path.with_name(f"{output_path.stem}_part{(i // max_bars_per_plot) + 1}{output_path.suffix}")
-            _save_bar_single(sl_labels, sl_values, title=title + f" (part {(i // max_bars_per_plot) + 1})" if i else title, ylabel=ylabel, output_path=out, ci_low=sl_ci_low, ci_high=sl_ci_high, rotation=rotation, horizontal=horizontal)
+                part = (i // max_bars_per_plot) + 1
+                out = output_path.with_name(
+                    f"{output_path.stem}_part{part}{output_path.suffix}"
+                )
+                title_i = f"{title} (part {part})"
+
+            _save_bar_single(
+                sl_labels,
+                sl_values,
+                title=title_i,
+                ylabel=ylabel,
+                output_path=out,
+                ci_low=sl_ci_low,
+                ci_high=sl_ci_high,
+                rotation=rotation,
+                horizontal=horizontal,
+            )
         return
 
-    _save_bar_single(labels, values, title=title, ylabel=ylabel, output_path=output_path, ci_low=ci_low, ci_high=ci_high, rotation=rotation, horizontal=horizontal)
+    _save_bar_single(
+        labels,
+        values,
+        title=title,
+        ylabel=ylabel,
+        output_path=output_path,
+        ci_low=ci_low,
+        ci_high=ci_high,
+        rotation=rotation,
+        horizontal=horizontal,
+    )
 
 
 def _save_bar_single(
@@ -133,7 +165,14 @@ def _save_bar_single(
     plt.close()
 
 
-def save_line(labels: Iterable[str], values: Iterable[float], *, title: str, ylabel: str, output_path: Path | str):
+def save_line(
+    labels: Iterable[str],
+    values: Iterable[float],
+    *,
+    title: str,
+    ylabel: str,
+    output_path: Path | str,
+):
     """Сохранить линейный график по меткам оси X и значениям."""
     labels = list(labels)
     values = list(values)
@@ -151,7 +190,15 @@ def save_line(labels: Iterable[str], values: Iterable[float], *, title: str, yla
     plt.close()
 
 
-def save_scatter(x_values: Iterable[float], y_values: Iterable[float], *, title: str, xlabel: str, ylabel: str, output_path: Path | str):
+def save_scatter(
+    x_values: Iterable[float],
+    y_values: Iterable[float],
+    *,
+    title: str,
+    xlabel: str,
+    ylabel: str,
+    output_path: Path | str,
+):
     """Сохранить scatter plot для двух массивов значений."""
     x_values = list(x_values)
     y_values = list(y_values)

@@ -16,11 +16,29 @@ def _resolve_columns(cols: Iterable[str]) -> Dict[str, str]:
     """Определить столбцы для Global Emissions по ключевым словам."""
     cols = list(cols)
     return {
-        "country": find_first_match(cols, ["country"]) or find_first_match(cols, ["nation"]) or find_first_match(cols, ["state"]),
-        "year": find_first_match(cols, ["year"]) or find_first_match(cols, ["time", "year"]),
-        "emissions": find_first_match(cols, ["emissions", "total"]) or find_first_match(cols, ["co2"]) or find_first_match(cols, ["ghg"]),
-        "population": find_first_match(cols, ["population"]) or find_first_match(cols, ["pop"]),
-        "gdp": find_first_match(cols, ["gdp"]) or find_first_match(cols, ["gross", "product"]) or find_first_match(cols, ["economy"]),
+        "country": (
+            find_first_match(cols, ["country"]) or
+            find_first_match(cols, ["nation"]) or
+            find_first_match(cols, ["state"])
+        ),
+        "year": (
+            find_first_match(cols, ["year"]) or
+            find_first_match(cols, ["time", "year"])
+        ),
+        "emissions": (
+            find_first_match(cols, ["emissions", "total"]) or
+            find_first_match(cols, ["co2"]) or
+            find_first_match(cols, ["ghg"])
+        ),
+        "population": (
+            find_first_match(cols, ["population"]) or
+            find_first_match(cols, ["pop"])
+        ),
+        "gdp": (
+            find_first_match(cols, ["gdp"]) or
+            find_first_match(cols, ["gross", "product"]) or
+            find_first_match(cols, ["economy"])
+        ),
     }
 
 
@@ -60,7 +78,10 @@ def run_all(csv_path: Path | str, parquet_path: Path | str, output_dir: Path | s
             if cc and cc in chunk.columns:
                 chunk[cc] = pd.to_numeric(chunk[cc], errors="coerce")
 
-        if country and em and pop and country in chunk.columns and em in chunk.columns and pop in chunk.columns:
+        if (
+            country and em and pop and
+            country in chunk.columns and em in chunk.columns and pop in chunk.columns
+        ):
             g1 = chunk[[country]].copy()
             g1["e"] = chunk[em].fillna(0)
             g1["p"] = chunk[pop].fillna(0)
@@ -88,21 +109,54 @@ def run_all(csv_path: Path | str, parquet_path: Path | str, output_dir: Path | s
     per_capita_sorted = sorted(per_capita, key=lambda x: x[1])
     low3 = per_capita_sorted[:3]
     high3 = per_capita_sorted[-3:][::-1]
-    save_bar([c for c, _ in per_capita_sorted], [v for _, v in per_capita_sorted], title="Emissions: Выбросы на душу населения", ylabel="Per Capita", output_path=output_dir / "emissions_per_capita.png", rotation=90)
+    save_bar(
+        [c for c, _ in per_capita_sorted],
+        [v for _, v in per_capita_sorted],
+        title="Emissions: Выбросы на душу населения",
+        ylabel="Per Capita",
+        output_path=output_dir / "emissions_per_capita.png",
+        rotation=90,
+    )
 
-    spread = sorted([(c, w.std) for c, w in welford_country.items() if w.count > 1], key=lambda x: x[1])
-    save_bar([c for c, _ in spread], [v for _, v in spread], title="Emissions: Разброс суммы выбросов по странам", ylabel="Std", output_path=output_dir / "emissions_spread.png", rotation=90)
+    spread = sorted(
+        [(c, w.std) for c, w in welford_country.items() if w.count > 1],
+        key=lambda x: x[1],
+    )
+    save_bar(
+        [c for c, _ in spread],
+        [v for _, v in spread],
+        title="Emissions: Разброс суммы выбросов по странам",
+        ylabel="Std",
+        output_path=output_dir / "emissions_spread.png",
+        rotation=90,
+    )
 
-    corr = float(pd.Series(corr_x).corr(pd.Series(corr_y))) if corr_x and corr_y else float("nan")
-    save_scatter(corr_x, corr_y, title=f"Emissions: Population vs Emissions (r={corr:.3f})", xlabel="Population", ylabel="Emissions", output_path=output_dir / "emissions_corr.png")
+    corr = (
+        float(pd.Series(corr_x).corr(pd.Series(corr_y)))
+        if corr_x and corr_y
+        else float("nan")
+    )
+    save_scatter(
+        corr_x,
+        corr_y,
+        title=f"Emissions: Population vs Emissions (r={corr:.3f})",
+        xlabel="Population",
+        ylabel="Emissions",
+        output_path=output_dir / "emissions_corr.png",
+    )
 
     summary = [
         "Самые зеленые страны: " + ", ".join([f"{c}:{v:.4f}" for c, v in low3]),
         "Самые грязные страны: " + ", ".join([f"{c}:{v:.4f}" for c, v in high3]),
-        "Минимальный разброс выбросов: " + ", ".join([f"{c}:{v:.3f}" for c, v in spread[:3]]),
-        "Максимальный разброс выбросов: " + ", ".join([f"{c}:{v:.3f}" for c, v in spread[-3:][::-1]]),
+        "Минимальный разброс выбросов: "
+        + ", ".join([f"{c}:{v:.3f}" for c, v in spread[:3]]),
+        "Максимальный разброс выбросов: "
+        + ", ".join([f"{c}:{v:.3f}" for c, v in spread[-3:][::-1]]),
         f"Общий GDP: {total_gdp:.2f}",
         f"Общие выбросы: {total_em:.2f}",
         f"Корреляция Population vs Emissions: {corr:.3f}",
     ]
-    (output_dir / "emissions_summary.txt").write_text("\n".join(summary), encoding="utf-8")
+    (output_dir / "emissions_summary.txt").write_text(
+        "\n".join(summary),
+        encoding="utf-8",
+    )

@@ -71,8 +71,8 @@ def run_all(csv_path: Path | str, parquet_path: Path | str, output_dir: Path | s
 
         # === Task 3: Динамика JDR ===
         # Сохраняем агрегированные части вместо списков
-        jdr_agg = chunk.groupby([st, yr])[jdr].mean().reset_index()
-        jdr_agg.columns = [st, yr, "jdr_mean"]
+        jdr_agg = chunk[[st, yr, jdr]].copy()
+        jdr_agg.columns = [st, yr, "jdr"]
         ts_jdr_parts.append(jdr_agg)
 
         # === Extra: Корреляция ===
@@ -156,16 +156,14 @@ def run_all(csv_path: Path | str, parquet_path: Path | str, output_dir: Path | s
     unstable_state = rr_sorted[-1][0] if rr_sorted else None
     
     if unstable_state and ts_jdr_parts:
-        # Объединяем все части через concat
         ts_jdr_df = pd.concat(ts_jdr_parts, ignore_index=True)
         
-        # Фильтруем по штату и агрегируем (на случай дубликатов из разных чанков)
+        # Фильтруем по штату
         state_ts = ts_jdr_df[ts_jdr_df[COLUMNS["state"]] == unstable_state]
-        state_ts = state_ts.groupby(COLUMNS["year"])["jdr_mean"].mean().reset_index()
         state_ts = state_ts.sort_values(COLUMNS["year"])
-        
+
         labels_jdr = state_ts[COLUMNS["year"]].astype(str).tolist()
-        vals_jdr = state_ts["jdr_mean"].tolist()
+        vals_jdr = state_ts["jdr"].tolist()
         ma = moving_average(pd.Series(vals_jdr), window=3)
         
         save_line_dual(
@@ -176,6 +174,7 @@ def run_all(csv_path: Path | str, parquet_path: Path | str, output_dir: Path | s
             legend1="JDR",
             legend2="MA(3)",
         )
+
 
     # Extra: Корреляция
     if corr_parts:

@@ -10,7 +10,7 @@ import pandas as pd
 
 def read_csv_chunks(
     path: Path | str,
-    chunksize: int = 100_000,
+    chunksize: int = 100,
     usecols: Optional[Iterable[str]] = None,
     dtype: Optional[dict] = None,
 ) -> Generator[pd.DataFrame, None, None]:

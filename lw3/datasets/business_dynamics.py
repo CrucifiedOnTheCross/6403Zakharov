@@ -27,107 +27,123 @@ def run_all(csv_path: Path | str, parquet_path: Path | str, output_dir: Path | s
     output_dir = Path(output_dir)
     ensure_dir(output_dir)
 
-    # Задаём нужные колонки для чтения - экономим память и время
     needed_cols = list(COLUMNS.values())
     
-    # Инициализация аккумуляторов
-    avg_njcr = defaultdict(lambda: {"sum": 0.0, "cnt": 0})
+    # Аккумуляторы для статистики
+    state_stats = defaultdict(lambda: {"njcr_sum": 0.0, "njcr_cnt": 0})
     welford_njcr = defaultdict(Welford)
-    spread_rr = defaultdict(Welford)
-    ts_jdr = defaultdict(list)
-    corr_x = []
-    corr_y = []
+    welford_rr = defaultdict(Welford)
+    ts_jdr_parts = []  # Будем накапливать части, потом concat
+    corr_parts = []    # Аналогично для корреляции
 
-    # Читаем большими чанками (100 -> 50000) - в 500 раз эффективнее!
+    # Читаем CSV чанками
     for chunk in read_csv_chunks(csv_path, chunksize=50000, usecols=needed_cols):
-        # Конвертируем числовые колонки один раз
-        numeric_cols = [COLUMNS["njcr"], COLUMNS["rr"], COLUMNS["jdr"], COLUMNS["jcr"]]
+        # Конвертируем все числовые колонки сразу
+        numeric_cols = [COLUMNS[k] for k in ["njcr", "rr", "jdr", "jcr"]]
         chunk[numeric_cols] = chunk[numeric_cols].apply(pd.to_numeric, errors="coerce")
         
-        st_col = COLUMNS["state"]
-        yr_col = COLUMNS["year"]
-        njcr_col = COLUMNS["njcr"]
-        rr_col = COLUMNS["rr"]
-        jdr_col = COLUMNS["jdr"]
-        jcr_col = COLUMNS["jcr"]
+        st = COLUMNS["state"]
+        yr = COLUMNS["year"]
+        njcr = COLUMNS["njcr"]
+        rr = COLUMNS["rr"]
+        jdr = COLUMNS["jdr"]
+        jcr = COLUMNS["jcr"]
 
-        # Task 1: средний NJCR
-        grouped = chunk.groupby(st_col)[njcr_col].agg(["sum", "count"])
-        for state, row in grouped.iterrows():
-            avg_njcr[state]["sum"] += row["sum"]
-            avg_njcr[state]["cnt"] += row["count"]
+        # === Task 1: Средний NJCR ===
+        # Агрегация через pandas
+        njcr_agg = chunk.groupby(st)[njcr].agg(["sum", "count"]).reset_index()
+        njcr_agg.columns = [st, "sum", "count"]
         
-        for state, val in chunk[[st_col, njcr_col]].dropna().values:
+        # Обновление аккумуляторов через itertuples (быстрее iterrows)
+        for row in njcr_agg.itertuples(index=False):
+            state_stats[row[0]]["njcr_sum"] += row[1]
+            state_stats[row[0]]["njcr_cnt"] += row[2]
+        
+        # Welford для std
+        njcr_valid = chunk[[st, njcr]].dropna()
+        for state, val in njcr_valid.itertuples(index=False):
             welford_njcr[state].update(val)
 
-        # Task 2: разброс RR
-        for state, val in chunk[[st_col, rr_col]].dropna().values:
-            spread_rr[state].update(val)
+        # === Task 2: Разброс RR ===
+        rr_valid = chunk[[st, rr]].dropna()
+        for state, val in rr_valid.itertuples(index=False):
+            welford_rr[state].update(val)
 
-        # Task 3: динамика JDR
-        jdr_grouped = chunk.groupby([st_col, yr_col])[jdr_col].mean()
-        for (state, year), val in jdr_grouped.items():
-            ts_jdr[state].append((year, val))
+        # === Task 3: Динамика JDR ===
+        # Сохраняем агрегированные части вместо списков
+        jdr_agg = chunk.groupby([st, yr])[jdr].mean().reset_index()
+        jdr_agg.columns = [st, yr, "jdr_mean"]
+        ts_jdr_parts.append(jdr_agg)
 
-        # Extra: корреляция
-        valid_mask = chunk[[jcr_col, jdr_col]].notna().all(axis=1)
-        corr_x.extend(chunk.loc[valid_mask, jcr_col].tolist())
-        corr_y.extend(chunk.loc[valid_mask, jdr_col].tolist())
+        # === Extra: Корреляция ===
+        # Собираем валидные пары в DataFrame
+        corr_valid = chunk[[jcr, jdr]].dropna()
+        corr_parts.append(corr_valid)
 
-    # Вычисление результатов и построение графиков
-    avg_njcr_vals = {
-        s: (v["sum"] / v["cnt"]) if v["cnt"] else float("nan")
-        for s, v in avg_njcr.items()
+    # ============== Обработка результатов ==============
+    
+    # Task 1: Средние NJCR
+    avg_njcr = {
+        s: stats["njcr_sum"] / stats["njcr_cnt"] if stats["njcr_cnt"] > 0 else np.nan
+        for s, stats in state_stats.items()
     }
     avg_sorted = sorted(
-        [(s, v) for s, v in avg_njcr_vals.items() if not pd.isna(v)],
-        key=lambda x: x[1],
+        [(s, v) for s, v in avg_njcr.items() if not pd.isna(v)],
+        key=lambda x: x[1]
     )
 
-    # Топ-3 и боттом-3 по NJCR
-    njcr_top3 = avg_sorted[-3:][::-1]
-    njcr_bottom3 = avg_sorted[:3]
-    njcr_labels = [s for s, _ in (njcr_top3 + njcr_bottom3)]
-    njcr_means = [avg_njcr_vals[s] for s in njcr_labels]
+    # Топ-3 и Bottom-3
+    top3 = avg_sorted[-3:][::-1]
+    bottom3 = avg_sorted[:3]
+    labels = [s for s, _ in top3 + bottom3]
+    means = [avg_njcr[s] for s in labels]
     
-    # Доверительные интервалы
+    # Доверительные интервалы (95%)
     z = 1.96
-    stds = [welford_njcr[s].std for s in njcr_labels]
-    cnts = [welford_njcr[s].count for s in njcr_labels]
-    se = [std / np.sqrt(cnt) if cnt > 1 else np.nan for std, cnt in zip(stds, cnts)]
-    njcr_ci_low = [m - z * s for m, s in zip(njcr_means, se)]
-    njcr_ci_high = [m + z * s for m, s in zip(njcr_means, se)]
+    ci_data = [
+        {
+            "mean": avg_njcr[s],
+            "std": welford_njcr[s].std,
+            "cnt": welford_njcr[s].count
+        }
+        for s in labels
+    ]
+    se = [d["std"] / np.sqrt(d["cnt"]) if d["cnt"] > 1 else np.nan for d in ci_data]
+    ci_low = [m - z * s for m, s in zip(means, se)]
+    ci_high = [m + z * s for m, s in zip(means, se)]
     
     save_bar(
-        njcr_labels,
-        njcr_means,
+        labels, means,
         title="BusinessDynamics: Топ/Боттом NJCR (95% CI)",
         ylabel="Rate",
         output_path=output_dir / "bd_njcr_top_bottom.png",
         rotation=90,
-        ci_low=njcr_ci_low,
-        ci_high=njcr_ci_high,
+        ci_low=ci_low,
+        ci_high=ci_high,
     )
 
-    # Топ-3 стабильные/турбулентные штаты
-    spread_sorted = sorted(
-        [(s, w.std) for s, w in spread_rr.items() if w.count > 1],
-        key=lambda x: x[1],
-    )
-    rr_top3 = spread_sorted[-3:][::-1]
-    rr_bottom3 = spread_sorted[:3]
-    rr_labels = [s for s, _ in (rr_top3 + rr_bottom3)]
-    rr_means = [spread_rr[s].mean for s in rr_labels]
+    # Task 2: Разброс RR
+    rr_stats = [(s, w.std, w.mean) for s, w in welford_rr.items() if w.count > 1]
+    rr_sorted = sorted(rr_stats, key=lambda x: x[1])
     
-    stds_rr = [spread_rr[s].std for s in rr_labels]
-    cnts_rr = [spread_rr[s].count for s in rr_labels]
-    se_rr = [std / np.sqrt(cnt) if cnt > 1 else np.nan for std, cnt in zip(stds_rr, cnts_rr)]
-    rr_ci_low = [m - z * s for m, s in zip(rr_means, se_rr)]
-    rr_ci_high = [m + z * s for m, s in zip(rr_means, se_rr)]
+    rr_top3 = rr_sorted[-3:][::-1]
+    rr_bottom3 = rr_sorted[:3]
+    rr_labels = [s for s, _, _ in rr_top3 + rr_bottom3]
+    rr_means = [welford_rr[s].mean for s in rr_labels]
+    
+    rr_ci_data = [
+        {
+            "std": welford_rr[s].std,
+            "cnt": welford_rr[s].count
+        }
+        for s in rr_labels
+    ]
+    rr_se = [d["std"] / np.sqrt(d["cnt"]) if d["cnt"] > 1 else np.nan for d in rr_ci_data]
+    rr_ci_low = [m - z * s for m, s in zip(rr_means, rr_se)]
+    rr_ci_high = [m + z * s for m, s in zip(rr_means, rr_se)]
     
     save_bar(
-        rr_labels,
-        rr_means,
+        rr_labels, rr_means,
         title="BusinessDynamics: Топ/Боттом RR (95% CI)",
         ylabel="Rate",
         output_path=output_dir / "bd_rr_top_bottom_ci.png",
@@ -136,17 +152,24 @@ def run_all(csv_path: Path | str, parquet_path: Path | str, output_dir: Path | s
         ci_high=rr_ci_high,
     )
 
-    # Динамика JDR для самого нестабильного штата
-    unstable_state = spread_sorted[-1][0] if spread_sorted else None
-    if unstable_state and unstable_state in ts_jdr:
-        xs = sorted(ts_jdr[unstable_state])
-        labels = [str(y) for y, _ in xs]
-        vals = [v for _, v in xs]
-        ma = moving_average(pd.Series(vals), window=3)
+    # Task 3: Динамика JDR для нестабильного штата
+    unstable_state = rr_sorted[-1][0] if rr_sorted else None
+    
+    if unstable_state and ts_jdr_parts:
+        # Объединяем все части через concat
+        ts_jdr_df = pd.concat(ts_jdr_parts, ignore_index=True)
+        
+        # Фильтруем по штату и агрегируем (на случай дубликатов из разных чанков)
+        state_ts = ts_jdr_df[ts_jdr_df[COLUMNS["state"]] == unstable_state]
+        state_ts = state_ts.groupby(COLUMNS["year"])["jdr_mean"].mean().reset_index()
+        state_ts = state_ts.sort_values(COLUMNS["year"])
+        
+        labels_jdr = state_ts[COLUMNS["year"]].astype(str).tolist()
+        vals_jdr = state_ts["jdr_mean"].tolist()
+        ma = moving_average(pd.Series(vals_jdr), window=3)
+        
         save_line_dual(
-            labels,
-            vals,
-            ma.tolist(),
+            labels_jdr, vals_jdr, ma.tolist(),
             title=f"BusinessDynamics: JDR + MA — {unstable_state}",
             ylabel="Rate",
             output_path=output_dir / "bd_jdr_unstable.png",
@@ -154,16 +177,21 @@ def run_all(csv_path: Path | str, parquet_path: Path | str, output_dir: Path | s
             legend2="MA(3)",
         )
 
-    # Корреляция
-    corr = float(pd.Series(corr_x).corr(pd.Series(corr_y))) if corr_x else float("nan")
-    save_scatter(
-        corr_x,
-        corr_y,
-        title=f"BusinessDynamics: JCR vs JDR (r={corr:.3f})",
-        xlabel="Job Creation Rate",
-        ylabel="Job Destruction Rate",
-        output_path=output_dir / "bd_corr.png",
-    )
+    # Extra: Корреляция
+    if corr_parts:
+        corr_df = pd.concat(corr_parts, ignore_index=True)
+        corr_value = corr_df[COLUMNS["jcr"]].corr(corr_df[COLUMNS["jdr"]])
+        
+        save_scatter(
+            corr_df[COLUMNS["jcr"]].tolist(),
+            corr_df[COLUMNS["jdr"]].tolist(),
+            title=f"BusinessDynamics: JCR vs JDR (r={corr_value:.3f})",
+            xlabel="Job Creation Rate",
+            ylabel="Job Destruction Rate",
+            output_path=output_dir / "bd_corr.png",
+        )
+    else:
+        corr_value = np.nan
 
     # Summary
     summary = [
@@ -172,10 +200,10 @@ def run_all(csv_path: Path | str, parquet_path: Path | str, output_dir: Path | s
         "Штаты с максимальным Net Job Creation Rate: "
         + ", ".join([f"{s}:{v:.3f}" for s, v in avg_sorted[-3:][::-1]]),
         "Наиболее стабильные штаты (минимальный Std): "
-        + ", ".join([f"{s}:{v:.3f}" for s, v in spread_sorted[:3]]),
+        + ", ".join([f"{s}:{std:.3f}" for s, std, _ in rr_sorted[:3]]),
         "Наиболее турбулентные штаты (максимальный Std): "
-        + ", ".join([f"{s}:{v:.3f}" for s, v in spread_sorted[-3:][::-1]]),
+        + ", ".join([f"{s}:{std:.3f}" for s, std, _ in rr_sorted[-3:][::-1]]),
         f"Наиболее нестабильный штат (по RR): {unstable_state}",
-        f"Корреляция JCR vs JDR: {corr:.3f}",
+        f"Корреляция JCR vs JDR: {corr_value:.3f}",
     ]
     (output_dir / "bd_summary.txt").write_text("\n".join(summary), encoding="utf-8")

@@ -7,3 +7,6 @@ __pycache__/.venv/
 *_custom.png
 *_library.png
 .env
+downloads/
+downloads_async/
+downloads_async_pipeline/

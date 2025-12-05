@@ -20,6 +20,8 @@ flake8-import-order = "*"
 flake8-docstrings-complete = "*"
 flake8-clean-block = "*"
 opencv-python = "*"
+aiohttp = "*"
+aiofiles = "*"
 
 [dev-packages]
 

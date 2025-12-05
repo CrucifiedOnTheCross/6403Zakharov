@@ -6,3 +6,4 @@ __pycache__/.venv/
 *_library.jpg
 *_custom.png
 *_library.png
+.env

@@ -38,7 +38,7 @@ class AsyncCatImageProcessor(CatImageProcessor):
 
     def __init__(self, provider: str = "cat", output_dir: str = "downloads", limit: int = 1):
         super().__init__(provider, output_dir, limit)
-        self.pool = None  # Будет инициализирован при необходимости
+        self.pool = None
 
     async def fetch_json(self, session: aiohttp.ClientSession) -> List[Dict]:
         """Асинхронное получение списка URL через API."""
@@ -144,10 +144,7 @@ class AsyncCatImageProcessor(CatImageProcessor):
         )
         print(f"Saved images for {idx}_{s_breed}")
 
-    # -------------------------------------------------------------------------
     # Generator Pipeline Implementation (Дополнительное задание)
-    # -------------------------------------------------------------------------
-
     async def process_pipeline_generator(self):
         """
         Реализация через асинхронные генераторы (конвейер).
@@ -161,16 +158,9 @@ class AsyncCatImageProcessor(CatImageProcessor):
         
         try:
             async with aiohttp.ClientSession() as session:
-                # Stage 1: URL Generator
                 url_gen = self._gen_urls(session)
-                
-                # Stage 2: Download Generator (Async IO)
                 download_gen = self._gen_downloads(session, url_gen)
-                
-                # Stage 3: Processing Generator (CPU / Multiprocessing)
                 processed_gen = self._gen_processing(download_gen)
-                
-                # Stage 4: Save Consumer (Async IO)
                 await self._consume_save(processed_gen)
                 
         finally:
@@ -244,8 +234,6 @@ class AsyncCatImageProcessor(CatImageProcessor):
             
             base = os.path.join(self.output_dir, f"{idx}_{s_breed}")
             
-            # ВАЖНО: Запускаем сохранение сразу через create_task,
-            # чтобы не блокировать получение следующего элемента из генератора.
             t1 = asyncio.create_task(self.save_cv2_image(base + "_original.png", cat_img.image))
             t2 = asyncio.create_task(self.save_cv2_image(base + "_edges_lib.png", lib))
             t3 = asyncio.create_task(self.save_cv2_image(base + "_edges_custom.png", cust))

@@ -11,6 +11,7 @@ except Exception:
 from io import BytesIO
 
 from .cat_image import CatImage, ColorCatImage
+from logging_config import logger
 
 
 def _read_env() -> Dict[str, str]:
@@ -30,10 +31,10 @@ def _read_env() -> Dict[str, str]:
 def _log_time(fn):
     def wrapper(self, *args, **kwargs):
         start = time.perf_counter()
-        print(f"START {fn.__name__}")
+        logger.debug(f"START {fn.__name__}")
         res = fn(self, *args, **kwargs)
         end = time.perf_counter()
-        print(f"END {fn.__name__} took {end - start:.3f}s")
+        logger.debug(f"END {fn.__name__} took {end - start:.3f}s")
         return res
     return wrapper
 
@@ -113,7 +114,7 @@ class CatImageProcessor:
                     content = resp.read()
             cat = CatImage.from_bytes(content, img_url, breed_name)
             images.append(cat)
-            print(f"Fetched {breed_name} {img_url}")
+            logger.debug(f"Fetched {breed_name} {img_url}")
         return images
 
     def _sanitize(self, breed: str) -> str:
@@ -138,4 +139,4 @@ class CatImageProcessor:
             import cv2
             cv2.imwrite(libp, lib)
             cv2.imwrite(custp, cust)
-            print(f"Saved {orig}, {libp}, {custp}")
+            logger.debug(f"Saved {orig}, {libp}, {custp}")

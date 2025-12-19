@@ -10,6 +10,7 @@ import cv2
 
 from cat_api.cat_image import CatImage
 from cat_api.processor import CatImageProcessor
+from logging_config import logger
 
 
 def _cpu_bound_edge_detect(img_bytes: bytes, url: str, breed: str) -> Tuple["CatImage", object, object]:
@@ -18,7 +19,7 @@ def _cpu_bound_edge_detect(img_bytes: bytes, url: str, breed: str) -> Tuple["Cat
     Выполняет десериализацию изображения и свертку (выделение границ).
     """
     pid = os.getpid()
-    print(f"Convolution for image '{breed}' started (PID {pid})")
+    logger.debug(f"Convolution for image '{breed}' started (PID {pid})")
     
     cat_img = CatImage.from_bytes(img_bytes, url, breed)
     
@@ -26,7 +27,7 @@ def _cpu_bound_edge_detect(img_bytes: bytes, url: str, breed: str) -> Tuple["Cat
     edges_lib = cat_img.edge_detect_library()
     edges_custom = cat_img.edge_detect_custom()
     
-    print(f"Convolution for image '{breed}' finished (PID {pid})")
+    logger.debug(f"Convolution for image '{breed}' finished (PID {pid})")
     return cat_img, edges_lib, edges_custom
 
 
@@ -59,11 +60,11 @@ class AsyncCatImageProcessor(CatImageProcessor):
 
     async def fetch_image_bytes(self, session: aiohttp.ClientSession, url: str, idx: int) -> bytes:
         """Асинхронное скачивание байтов изображения."""
-        print(f"Downloading image {idx} started")
+        logger.debug(f"Downloading image {idx} started")
         async with session.get(url) as response:
             response.raise_for_status()
             data = await response.read()
-        print(f"Downloading image {idx} finished")
+        logger.debug(f"Downloading image {idx} finished")
         return data
 
     async def save_cv2_image(self, path: str, image):
@@ -87,7 +88,7 @@ class AsyncCatImageProcessor(CatImageProcessor):
         2. Формируем задачи на скачивание + обработку + сохранение.
         3. Запускаем всё через asyncio.gather.
         """
-        print("Starting Standard Async Pipeline...")
+        logger.info("Starting Standard Async Pipeline...")
         start_total = time.perf_counter()
         os.makedirs(self.output_dir, exist_ok=True)
 
@@ -122,7 +123,7 @@ class AsyncCatImageProcessor(CatImageProcessor):
                     await asyncio.gather(*tasks)
 
         end_total = time.perf_counter()
-        print(f"Total execution time (Standard): {end_total - start_total:.3f}s")
+        logger.info(f"Total execution time (Standard): {end_total - start_total:.3f}s")
 
     async def _process_single_image_standard(self, session, pool, idx, url, breed, s_breed):
         """Полный цикл обработки одного изображения для стандартного режима."""
@@ -142,7 +143,7 @@ class AsyncCatImageProcessor(CatImageProcessor):
             self.save_cv2_image(base + "_edges_lib.png", edges_lib),
             self.save_cv2_image(base + "_edges_custom.png", edges_custom)
         )
-        print(f"Saved images for {idx}_{s_breed}")
+        logger.debug(f"Saved images for {idx}_{s_breed}")
 
     # Generator Pipeline Implementation (Дополнительное задание)
     async def process_pipeline_generator(self):
@@ -150,7 +151,7 @@ class AsyncCatImageProcessor(CatImageProcessor):
         Реализация через асинхронные генераторы (конвейер).
         Этапы не блокируют друг друга.
         """
-        print("Starting Generator Async Pipeline...")
+        logger.info("Starting Generator Async Pipeline...")
         start_total = time.perf_counter()
         os.makedirs(self.output_dir, exist_ok=True)
         
@@ -167,7 +168,7 @@ class AsyncCatImageProcessor(CatImageProcessor):
             self.pool.shutdown()
             
         end_total = time.perf_counter()
-        print(f"Total execution time (Generator Pipeline): {end_total - start_total:.3f}s")
+        logger.info(f"Total execution time (Generator Pipeline): {end_total - start_total:.3f}s")
 
     async def _gen_urls(self, session) -> AsyncGenerator[Dict, None]:
         """Генератор 1: Выдает URL и метаданные."""

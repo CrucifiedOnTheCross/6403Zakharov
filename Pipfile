@@ -22,6 +22,8 @@ flake8-clean-block = "*"
 opencv-python = "*"
 aiohttp = "*"
 aiofiles = "*"
+numba = "*"
+
 
 [dev-packages]
 

@@ -6,19 +6,22 @@ from cat_api.processor import CatImageProcessor
 
 class TestCatImageProcessor(unittest.TestCase):
     """
-    Test suite for CatImageProcessor.
+    Набор тестов для класса CatImageProcessor.
+    Проверяет логику работы процессора, изолируя внешние зависимости (сеть, диск).
     """
 
     def setUp(self):
         """
-        Setup test environment.
+        Настройка окружения перед каждым тестом.
+        Создает экземпляр процессора и определяет временную директорию.
         """
         self.output_dir = "test_downloads"
         self.processor = CatImageProcessor(output_dir=self.output_dir, limit=1)
 
     def tearDown(self):
         """
-        Clean up test environment.
+        Очистка после каждого теста.
+        Удаляет временную директорию с файлами, если она была создана.
         """
         if os.path.exists(self.output_dir):
             shutil.rmtree(self.output_dir)
@@ -26,7 +29,8 @@ class TestCatImageProcessor(unittest.TestCase):
     @patch('cat_api.processor.requests')
     def test_fetch_images_success(self, mock_requests):
         """
-        Test fetching images from API successfully.
+        Тест успешного получения изображений через API.
+        Использует моки для имитации ответов сервера, чтобы не делать реальных запросов.
         """
         mock_response_search = MagicMock()
         mock_response_search.json.return_value = [{
@@ -55,7 +59,8 @@ class TestCatImageProcessor(unittest.TestCase):
     @patch('os.makedirs')
     def test_process_and_save(self, mock_makedirs, mock_imwrite, mock_fetch_images):
         """
-        Test the process_and_save method.
+        Тест метода process_and_save (обработка и сохранение).
+        Проверяет, что нужные методы обработки и сохранения вызываются корректно.
         """
         mock_cat = MagicMock()
         mock_cat.breed = "Test Breed"

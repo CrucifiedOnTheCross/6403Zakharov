@@ -3,26 +3,26 @@ import sys
 
 def setup_logger():
     """
-    Configures and returns a logger instance.
-    - File handler: DEBUG level, detailed format (time, file, line).
-    - Console handler: INFO level, concise format (message only).
+    Настраивает и возвращает экземпляр логгера.
+    - Файловый обработчик: уровень DEBUG, подробный формат (время, файл, строка).
+    - Консольный обработчик: уровень INFO, краткий формат (только сообщение).
     """
     logger = logging.getLogger("cat_app")
     logger.setLevel(logging.DEBUG)
     
-    # Avoid adding handlers multiple times if setup_logger is called repeatedly
+    # Избегаем многократного добавления обработчиков, если setup_logger вызывается повторно
     if logger.hasHandlers():
         return logger
 
-    # File Handler
-    # Use mode='a' to avoid clearing the log file when worker processes import this module
+    # Файловый обработчик
+    # Используем mode='a', чтобы не очищать файл журнала, когда рабочие процессы импортируют этот модуль
     file_handler = logging.FileHandler("app.log", mode='a', encoding='utf-8')
     file_handler.setLevel(logging.DEBUG)
     file_formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s")
     file_handler.setFormatter(file_formatter)
     logger.addHandler(file_handler)
 
-    # Console Handler
+    # Консольный обработчик
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setLevel(logging.INFO)
     console_formatter = logging.Formatter("%(levelname)s - %(message)s")
@@ -31,5 +31,5 @@ def setup_logger():
 
     return logger
 
-# Create the logger instance to be imported by other modules
+# Создаем экземпляр логгера для импорта другими модулями
 logger = setup_logger()

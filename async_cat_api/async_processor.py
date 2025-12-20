@@ -3,6 +3,7 @@ import time
 import asyncio
 from typing import List, Dict, AsyncGenerator, Tuple
 from concurrent.futures import ProcessPoolExecutor
+import logging
 
 import aiohttp
 import aiofiles
@@ -10,8 +11,8 @@ import cv2
 
 from cat_api.cat_image import CatImage
 from cat_api.processor import CatImageProcessor
-from logging_config import logger
 
+logger = logging.getLogger("cat_app")
 
 def _cpu_bound_edge_detect(img_bytes: bytes, url: str, breed: str) -> Tuple["CatImage", object, object]:
     """

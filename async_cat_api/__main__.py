@@ -1,12 +1,16 @@
 import argparse
 import asyncio
 import sys
-from logging_config import logger
-from async_cat_api import AsyncCatImageProcessor
+import os
+import logging
+
+logger = logging.getLogger("cat_app")
+
+from .async_processor import AsyncCatImageProcessor
 
 async def main():
     try:
-        logger.info("Program started")
+        logger.info("Program started (Package execution)")
         
         p = argparse.ArgumentParser(description="Async Cat Image Processor CLI")
         p.add_argument("--provider", choices=["cat", "dog"], default="cat", help="API Provider")
@@ -30,7 +34,7 @@ async def main():
         sys.exit(1)
 
 if __name__ == "__main__":
-    # Clear log file for a fresh run
-    with open("app.log", "w", encoding='utf-8') as f:
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
         pass
-    asyncio.run(main())

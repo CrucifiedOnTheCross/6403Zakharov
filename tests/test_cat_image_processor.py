@@ -1,5 +1,5 @@
 import unittest
-from unittest.mock import patch, MagicMock
+from unittest.mock import Mock, patch
 import os
 import shutil
 from cat_api.processor import CatImageProcessor
@@ -32,21 +32,21 @@ class TestCatImageProcessor(unittest.TestCase):
         Тест успешного получения изображений через API.
         Использует моки для имитации ответов сервера, чтобы не делать реальных запросов.
         """
-        mock_response_search = MagicMock()
+        mock_response_search = Mock()
         mock_response_search.json.return_value = [{
             "breeds": [{"name": "TestBreed"}],
             "url": "http://example.com/cat.jpg"
         }]
         mock_response_search.raise_for_status.return_value = None
 
-        mock_response_image = MagicMock()
+        mock_response_image = Mock()
         mock_response_image.content = b'fake_image_bytes'
         mock_response_image.raise_for_status.return_value = None
 
         mock_requests.get.side_effect = [mock_response_search, mock_response_image]
         
         with patch('cat_api.cat_image.CatImage.from_bytes') as mock_from_bytes:
-            mock_cat_image = MagicMock()
+            mock_cat_image = Mock()
             mock_from_bytes.return_value = mock_cat_image
             
             images = self.processor.fetch_images()
@@ -62,7 +62,7 @@ class TestCatImageProcessor(unittest.TestCase):
         Тест метода process_and_save (обработка и сохранение).
         Проверяет, что нужные методы обработки и сохранения вызываются корректно.
         """
-        mock_cat = MagicMock()
+        mock_cat = Mock()
         mock_cat.breed = "Test Breed"
         mock_cat.edge_detect_library.return_value = "lib_edges"
         mock_cat.edge_detect_custom.return_value = "custom_edges"

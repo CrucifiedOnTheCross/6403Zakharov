@@ -1,14 +1,15 @@
 import logging
 import sys
 
+logger = logging.getLogger("cat_app")
+logger.setLevel(logging.DEBUG)
+
 def setup_logger():
     """
     Настраивает и возвращает экземпляр логгера.
     - Файловый обработчик: уровень DEBUG, подробный формат (время, файл, строка).
     - Консольный обработчик: уровень INFO, краткий формат (только сообщение).
     """
-    logger = logging.getLogger("cat_app")
-    logger.setLevel(logging.DEBUG)
     
     # Избегаем многократного добавления обработчиков, если setup_logger вызывается повторно
     if logger.hasHandlers():
@@ -28,8 +29,3 @@ def setup_logger():
     console_formatter = logging.Formatter("%(levelname)s - %(message)s")
     console_handler.setFormatter(console_formatter)
     logger.addHandler(console_handler)
-
-    return logger
-
-# Создаем экземпляр логгера для импорта другими модулями
-logger = setup_logger()

@@ -90,6 +90,33 @@ images = processor.fetch_images()
 
 ---
 
+## Запуск CLI утилит
+
+Проект предоставляет несколько консольных утилит, запускаемых как модули.
+
+### 1. API Котиков (Cat API)
+Загрузка и обработка изображений через API.
+
+**Синхронная версия:**
+```bash
+python -m cat_api --limit 3 --provider cat --output-dir downloads
+```
+
+**Асинхронная версия:**
+```bash
+python -m async_cat_api --limit 5 --mode pipeline
+```
+
+### 2. Обработка изображений (Implementation)
+Применение фильтров (границы, углы) к локальным файлам.
+
+```bash
+python -m implementation edges path/to/image.jpg --impl custom
+python -m implementation corners path/to/image.jpg --impl library -o result.png
+```
+
+---
+
 ## Тестирование
 
 Проект оснащен набором автоматических тестов, проверяющих корректность работы алгоритмов и API клиентов.
@@ -110,12 +137,11 @@ python -m unittest discover tests
 
 ```text
 .
-├── cat_api/                # Синхронное ядро и модели данных
-├── async_cat_api/          # Асинхронные расширения (asyncio)
-├── implementation/         # Алгоритмы обработки (OpenCV vs Custom)
+├── cat_api/                # Синхронное ядро и CLI (python -m cat_api)
+├── async_cat_api/          # Асинхронные расширения и CLI (python -m async_cat_api)
+├── implementation/         # Алгоритмы обработки и CLI (python -m implementation)
 ├── interfaces/             # Абстрактные базовые классы
 ├── tests/                  # Пакет модульных тестов
 ├── setup.py                # Конфигурация сборки пакета
-├── main.py                 # CLI утилита (пример использования)
 └── README.md               # Документация проекта
 ```

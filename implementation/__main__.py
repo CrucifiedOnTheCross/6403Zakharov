@@ -1,5 +1,5 @@
 """
-main.py
+main.py -> implementation/__main__.py
 
 Пример лабораторной работы по курсу "Технологии программирования на Python".
 
@@ -12,7 +12,7 @@ main.py
 - обнаружение окружностей (circles)
 
 Запуск:
-    python main.py <метод> <путь_к_изображению> [-o путь_для_сохранения]
+    python -m implementation <метод> <путь_к_изображению> [-o путь_для_сохранения]
 
 Аргументы:
     метод: edges | corners | circles
@@ -21,8 +21,8 @@ main.py
                   (по умолчанию: <имя_входного_файла>_result.png)
 
 Пример:
-    python main.py edges input.jpg
-    python main.py corners input.jpg -o corners_result.png
+    python -m implementation edges input.jpg
+    python -m implementation corners input.jpg -o corners_result.png
 
 Автор: [Ваше имя]
 """
@@ -30,15 +30,16 @@ main.py
 import argparse
 import os
 import time
-
+import logging
 import cv2
 
 # Импортируем обе реализации
-from implementation.image_processing import \
+from .image_processing import \
     ImageProcessing as LibraryImplementation
-from implementation.image_processing_custom import \
+from .image_processing_custom import \
     ImageProcessingCustom as CustomImplementation
 
+logger = logging.getLogger("cat_app")
 
 def main() -> None:
     """
@@ -46,6 +47,7 @@ def main() -> None:
     """
     parser = argparse.ArgumentParser(
         description="Обработка изображения с выбором реализации.",
+        prog="python -m implementation"
     )
     parser.add_argument(
         "method",
@@ -72,16 +74,16 @@ def main() -> None:
     # Загрузка изображения
     image = cv2.imread(args.input)
     if image is None:
-        print(f"Ошибка: не удалось загрузить изображение {args.input}")
+        logger.error(f"Ошибка: не удалось загрузить изображение {args.input}")
         return
 
     # Выбор реализации в зависимости от аргумента --impl
     if args.impl == 'custom':
         processor = CustomImplementation()
-        print("INFO: Используется пользовательская реализация (NumPy).")
+        logger.info("Используется пользовательская реализация (NumPy).")
     else:
         processor = LibraryImplementation()
-        print("INFO: Используется библиотечная реализация (OpenCV).")
+        logger.info("Используется библиотечная реализация (OpenCV).")
 
     # Измерение времени выполнения и вызов метода
     start_time = time.time()
@@ -92,18 +94,18 @@ def main() -> None:
         elif args.method == "corners":
             result = processor.corner_detection(image)
         elif args.method == "circles":
-            print("INFO: Попытка вызова метода обнаружения окружностей...")
+            logger.info("Попытка вызова метода обнаружения окружностей...")
             result = processor.circle_detection(image)
     except NotImplementedError as e:
-        print(f"Ошибка: {e}")
+        logger.error(f"Ошибка: {e}")
         return
     except Exception as e:
-        print(f"Произошла непредвиденная ошибка: {e}")
+        logger.error(f"Произошла непредвиденная ошибка: {e}")
         return
 
     end_time = time.time()
     execution_time = end_time - start_time
-    print(f"INFO: Метод '{args.method}' выполнен за {execution_time:.4f} секунд.")
+    logger.info(f"Метод '{args.method}' выполнен за {execution_time:.4f} секунд.")
 
     # Определение пути для сохранения
     if args.output:
@@ -115,7 +117,7 @@ def main() -> None:
     # Сохранение результата
     if result is not None:
         cv2.imwrite(output_path, result)
-        print(f"Результат сохранён в {output_path}")
+        logger.info(f"Результат сохранён в {output_path}")
 
 
 if __name__ == "__main__":

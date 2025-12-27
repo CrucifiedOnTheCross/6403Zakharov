@@ -3,6 +3,7 @@ import sys
 
 logger = logging.getLogger("cat_app")
 logger.setLevel(logging.DEBUG)
+logger.propagate = False
 
 def setup_logger():
     """
@@ -12,7 +13,7 @@ def setup_logger():
     """
     
     # Избегаем многократного добавления обработчиков, если setup_logger вызывается повторно
-    if logger.hasHandlers():
+    if logger.handlers:
         return logger
 
     # Файловый обработчик

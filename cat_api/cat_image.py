@@ -1,8 +1,11 @@
 import abc
 from typing import Tuple
+import logging
 
 import numpy as np
 import cv2
+
+logger = logging.getLogger("cat_app")
 
 
 class CatImage(abc.ABC):
@@ -72,11 +75,13 @@ class CatImage(abc.ABC):
         return a.astype(np.int16), b.astype(np.int16)
 
     def __add__(self, other: "CatImage") -> "CatImage":
+        logger.info(f"Сложение изображений: {self.breed} + {other.breed}")
         a, b = self._ensure_compatible(other)
         c = np.clip(a + b, 0, 255).astype(np.uint8)
         return ColorCatImage(c, self._url, self._breed)
 
     def __sub__(self, other: "CatImage") -> "CatImage":
+        logger.info(f"Вычитание изображений: {self.breed} - {other.breed}")
         a, b = self._ensure_compatible(other)
         c = np.clip(a - b, 0, 255).astype(np.uint8)
         return ColorCatImage(c, self._url, self._breed)

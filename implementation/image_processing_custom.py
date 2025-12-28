@@ -16,7 +16,7 @@ from numba import jit
 
 import numpy as np
 
-logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("cat_app")
 
 
 @jit(nopython=True)
@@ -177,7 +177,7 @@ class ImageProcessingCustom(IImageProcessing):
 
     def circle_detection(self: ImageProcessingCustom, image: np.ndarray) -> np.ndarray:
         """
-        Обнаруживает окружности с помощью преобразования Хафа.
+        Обнаруживает окружности с помощью преобразования Хафа (используя градиенты).
 
         Args:
             image (np.ndarray): Входное изображение.
@@ -185,23 +185,47 @@ class ImageProcessingCustom(IImageProcessing):
         Returns:
             np.ndarray: Копия изображения с нарисованными найденными окружностями.
         """
-        edges = self.edge_detection(image)
+        # 1. Предварительная обработка (Blur + Grayscale)
+        gray = self._rgb_to_grayscale(image)
+        # Используем GaussianBlur для подавления шума перед выделением границ
+        blurred = cv2.GaussianBlur(gray, (9, 9), 2)
 
+        # 2. Выделение границ и градиентов
+        sobel_x = np.array([[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]])
+        sobel_y = np.array([[-1, -2, -1], [0, 0, 0], [1, 2, 1]])
+
+        grad_x = self._convolution(blurred, sobel_x)
+        grad_y = self._convolution(blurred, sobel_y)
+
+        magnitude = np.sqrt(grad_x**2 + grad_y**2)
+        
+        # Вычисляем углы градиентов (в радианах)
+        # arctan2 возвращает угол в диапазоне (-pi, pi)
+        gradients = np.arctan2(grad_y, grad_x)
+
+        # Пороговая фильтрация границ
+        max_magnitude = np.max(magnitude)
+        threshold_ratio = 0.12
+        threshold_val = max_magnitude * threshold_ratio
+        edges = (magnitude > threshold_val)
+
+        # 3. Подготовка к голосованию
         height, width = edges.shape
-        min_radius, max_radius = 30, 100
+        min_radius, max_radius = 12, 80
         radii = np.arange(min_radius, max_radius)
         accumulator = np.zeros((height, width, len(radii)), dtype=np.uint16)
 
-        edge_pixels = np.argwhere(edges == 1)
+        edge_pixels = np.argwhere(edges) # Индексы [row, col] где edges == True
 
-        logging.info("Выполняется голосование в пространстве Хафа...")
-        accumulator = self._hough_vote(edge_pixels, radii, accumulator)
+        logger.info("Выполняется голосование в пространстве Хафа (Gradient method)...")
+        accumulator = self._hough_vote_gradient(edge_pixels, gradients, radii, accumulator)
 
-        logging.info("Поиск локальных максимумов и фильтрация результатов...")
-        threshold = 160
-        min_dist = 30
+        logger.info("Поиск локальных максимумов и фильтрация результатов...")
+        # Порог должен быть ниже, так как голосуем точечно, но все пиксели круга должны попасть в центр
+        vote_threshold = 10 
+        min_dist = 22   # Минимальное расстояние между центрами
 
-        strong_circles_indices = np.argwhere(accumulator > threshold)
+        strong_circles_indices = np.argwhere(accumulator > vote_threshold)
         strong_circles_values = accumulator[
             strong_circles_indices[:, 0],
             strong_circles_indices[:, 1],
@@ -227,7 +251,7 @@ class ImageProcessingCustom(IImageProcessing):
             )
             remaining_indices = remaining_indices[distances > min_dist]
 
-        logging.info("Найдено %d кругов после фильтрации.", len(found_circles))
+        logger.info("Найдено %d кругов после фильтрации.", len(found_circles))
         result_image = image.copy()
         for center_y, center_x, r_idx in found_circles:
             radius = radii[r_idx]
@@ -238,14 +262,15 @@ class ImageProcessingCustom(IImageProcessing):
 
     @staticmethod
     @jit(nopython=True)
-    def _hough_vote(
-        edge_pixels: np.ndarray, radii: np.ndarray, accumulator: np.ndarray,
+    def _hough_vote_gradient(
+        edge_pixels: np.ndarray, gradients: np.ndarray, radii: np.ndarray, accumulator: np.ndarray,
     ) -> np.ndarray:
         """
-        JIT-скомпилированная функция для голосования в преобразовании Хафа.
+        JIT-скомпилированная функция для голосования в преобразовании Хафа с учетом градиента.
 
         Args:
-            edge_pixels (np.ndarray): Координаты пикселей границ.
+            edge_pixels (np.ndarray): Координаты пикселей границ (N, 2).
+            gradients (np.ndarray): Матрица углов градиентов (H, W).
             radii (np.ndarray): Массив радиусов для поиска.
             accumulator (np.ndarray): 3D массив-аккумулятор.
 
@@ -253,17 +278,37 @@ class ImageProcessingCustom(IImageProcessing):
             np.ndarray: Аккумулятор с голосами.
         """
         height, width, _ = accumulator.shape
-        sin_table = np.sin(np.deg2rad(np.arange(360)))
-        cos_table = np.cos(np.deg2rad(np.arange(360)))
-
+        
+        # Допуск по углу (в радианах), если хотим голосовать "конусом", 
+        # но для скорости голосуем по линии.
+        # Для надежности можно голосовать за +/- 1 пиксель перпендикулярно радиусу или просто по линии.
+        # Простой вариант: голосуем только за точки на линии градиента.
+        
         for p_idx in range(len(edge_pixels)):
             edge_row, edge_col = edge_pixels[p_idx]
+            angle = gradients[edge_row, edge_col]
+            
+            cos_a = np.cos(angle)
+            sin_a = np.sin(angle)
+
             for r_idx in range(len(radii)):
                 radius = radii[r_idx]
-                for angle in range(360):
-                    center_y = int(round(edge_row - radius * sin_table[angle]))
-                    center_x = int(round(edge_col - radius * cos_table[angle]))
-                    if 0 <= center_x < width and 0 <= center_y < height:
-                        accumulator[center_y, center_x, r_idx] += 1
+                
+                # Голосуем в направлении градиента (и против, т.к. не знаем полярность)
+                # Центр = Edge - Radius * Gradient (или +)
+                
+                # Направление 1: -
+                c1_x = int(round(edge_col - radius * cos_a))
+                c1_y = int(round(edge_row - radius * sin_a))
+                
+                if 0 <= c1_x < width and 0 <= c1_y < height:
+                    accumulator[c1_y, c1_x, r_idx] += 1
+                
+                # Направление 2: +
+                c2_x = int(round(edge_col + radius * cos_a))
+                c2_y = int(round(edge_row + radius * sin_a))
+                
+                if 0 <= c2_x < width and 0 <= c2_y < height:
+                    accumulator[c2_y, c2_x, r_idx] += 1
 
         return accumulator

@@ -16,10 +16,13 @@
 """
 
 import cv2
+import logging
 
 from interfaces.i_image_processing import IImageProcessing
 
 import numpy as np
+
+logger = logging.getLogger("cat_app")
 
 
 class ImageProcessing(IImageProcessing):
@@ -176,11 +179,15 @@ class ImageProcessing(IImageProcessing):
 
         if circles is not None:
             circles = np.uint16(np.around(circles))
+            count = circles.shape[1]
+            logger.info(f"Библиотечная реализация нашла {count} окружностей.")
 
             for i in circles[0, :]:
                 center = (i[0], i[1])
                 radius = i[2]
                 cv2.circle(output_image, center, 2, (0, 0, 255), 3)
                 cv2.circle(output_image, center, radius, (0, 255, 0), 2)
+        else:
+            logger.info("Библиотечная реализация не нашла окружностей.")
 
         return output_image
